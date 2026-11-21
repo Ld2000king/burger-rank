@@ -1,0 +1,18 @@
+{
+  "name": "BunRank — דירוג ההמבורגרים שלנו",
+  "short_name": "BunRank",
+  "description": "מדרגים כל המבורגר שאכלתם ורואים מי באמת מספר אחת",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF7F1",
+  "theme_color": "#FBF7F1",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
