@@ -1,30 +1,31 @@
-// Burger intro — swipe up and the burger rises and comes apart into its layers.
+// Rank intro — swipe up and the stack (trophy, topic cards, podium) rises and fans out.
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const esc = s => String(s).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
 
 const SVG = {
-  topBun: `<svg viewBox="0 0 260 104"><defs><linearGradient id="bgt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6C477"/><stop offset="1" stop-color="#D4852F"/></linearGradient></defs>
-    <path d="M8 94C8 40 60 6 130 6s122 34 122 88q0 10-10 10H18Q8 104 8 94Z" fill="url(#bgt)"/>
-    <ellipse cx="88" cy="34" rx="42" ry="12" fill="#fff" opacity=".22" transform="rotate(-12 88 34)"/>
-    <g fill="#FFF3D6">${[[70,46,-20],[104,28,10],[140,40,-5],[176,26,25],[196,56,-30],[120,64,15],[86,72,30],[160,70,-15],[54,70,10],[212,80,20]].map(([x, y, r]) => `<ellipse cx="${x}" cy="${y}" rx="6" ry="3" transform="rotate(${r} ${x} ${y})"/>`).join("")}</g></svg>`,
-  lettuce: `<svg viewBox="0 0 260 32"><path d="M2 12${Array.from({ length: 11 }, () => "q12-12 24 0").join("")}V22${Array.from({ length: 11 }, () => "q-12 12-24 0").join("")}Z" fill="#7BC25A" stroke="#4F8F34" stroke-width="2" stroke-linejoin="round"/></svg>`,
-  tomato: `<svg viewBox="0 0 260 24"><rect x="10" y="2" width="118" height="20" rx="10" fill="#E5483A"/><rect x="132" y="2" width="118" height="20" rx="10" fill="#D93A2D"/><ellipse cx="69" cy="10" rx="40" ry="4" fill="#FF8A73" opacity=".7"/><ellipse cx="191" cy="10" rx="40" ry="4" fill="#FF8A73" opacity=".6"/></svg>`,
-  cheese: `<svg viewBox="0 0 260 32"><path d="M4 2H256V12H236L226 28L216 12H150L142 24L134 12H70L58 30L46 12H4Z" fill="#F7C531" stroke="#E0A821" stroke-width="2" stroke-linejoin="round"/></svg>`,
-  patty: `<svg viewBox="0 0 260 48"><defs><linearGradient id="bgp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7A4329"/><stop offset="1" stop-color="#4A2414"/></linearGradient></defs><rect x="6" y="2" width="248" height="44" rx="22" fill="url(#bgp)"/><g fill="#3A1A0D" opacity=".55">${[[40,18],[70,30],[100,14],[130,28],[160,18],[190,32],[220,20],[56,36],[150,38],[205,12]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.4"/>`).join("")}</g><rect x="20" y="6" width="220" height="6" rx="3" fill="#fff" opacity=".1"/></svg>`,
-  bottomBun: `<svg viewBox="0 0 260 50"><defs><linearGradient id="bgb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F0B868"/><stop offset="1" stop-color="#C97B2B"/></linearGradient></defs><path d="M12 2H248q10 0 7 10C250 36 228 48 200 48H60C32 48 10 36 5 12Q2 2 12 2Z" fill="url(#bgb)"/></svg>`,
+  trophy: `<svg viewBox="0 0 260 104"><defs><linearGradient id="tg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#D99A12"/></linearGradient></defs>
+    <path d="M96 14h68v28c0 22-15 38-34 38S96 64 96 42Z" fill="url(#tg)"/><path d="M96 22H78c0 18 8 28 22 30M164 22h18c0 18-8 28-22 30" fill="none" stroke="#D99A12" stroke-width="6" stroke-linecap="round"/>
+    <rect x="122" y="78" width="16" height="12" fill="#D99A12"/><rect x="104" y="88" width="52" height="12" rx="4" fill="#B97F0A"/>
+    <path d="M130 28l4.5 9 10 1.5-7.2 7 1.7 10-9-4.7-9 4.7 1.7-10-7.2-7 10-1.5z" fill="#fff" opacity=".9"/><ellipse cx="112" cy="30" rx="5" ry="12" fill="#fff" opacity=".35"/></svg>`,
+  c1: `<svg viewBox="0 0 260 40"><rect x="18" y="2" width="224" height="36" rx="12" fill="#FDE7C8" stroke="rgba(0,0,0,.08)"/><text x="130" y="26" text-anchor="middle" direction="rtl" font-family="Heebo,system-ui,sans-serif" font-size="16" font-weight="700" fill="#5A3510">🍔 המבורגרים</text></svg>`,
+  c2: `<svg viewBox="0 0 260 40"><rect x="18" y="2" width="224" height="36" rx="12" fill="#DCE6FF" stroke="rgba(0,0,0,.08)"/><text x="130" y="26" text-anchor="middle" direction="rtl" font-family="Heebo,system-ui,sans-serif" font-size="16" font-weight="700" fill="#1F2E5C">🎬 סרטים</text></svg>`,
+  c3: `<svg viewBox="0 0 260 40"><rect x="18" y="2" width="224" height="36" rx="12" fill="#FFDCD3" stroke="rgba(0,0,0,.08)"/><text x="130" y="26" text-anchor="middle" direction="rtl" font-family="Heebo,system-ui,sans-serif" font-size="16" font-weight="700" fill="#6B1E12">🍕 פיצה</text></svg>`,
+  c4: `<svg viewBox="0 0 260 40"><rect x="18" y="2" width="224" height="36" rx="12" fill="#D9F2E1" stroke="rgba(0,0,0,.08)"/><text x="130" y="26" text-anchor="middle" direction="rtl" font-family="Heebo,system-ui,sans-serif" font-size="16" font-weight="700" fill="#17472A">📚 ספרים</text></svg>`,
+  podium: `<svg viewBox="0 0 260 56"><rect x="94" y="2" width="72" height="54" rx="8" fill="#E8B730"/><rect x="20" y="18" width="72" height="38" rx="8" fill="#B9C0C8"/><rect x="168" y="28" width="72" height="28" rx="8" fill="#CD8A4E"/>
+    <g font-family="Heebo,system-ui,sans-serif" font-weight="700" fill="#fff" text-anchor="middle"><text x="130" y="34" font-size="22">1</text><text x="56" y="44" font-size="18">2</text><text x="204" y="49" font-size="16">3</text></g></svg>`,
 };
 // [svg, label, height, compact y, exploded y, x drift, tilt]
 const LAYERS = [
-  ["topBun", "לחמנייה", 104, 0, 0, 0, -5],
-  ["lettuce", "חסה", 32, 90, 124, -8, 4],
-  ["tomato", "עגבנייה", 24, 106, 172, 6, -3],
-  ["cheese", "גבינה", 32, 116, 212, -4, 3],
-  ["patty", "קציצה", 48, 126, 262, 5, -2],
-  ["bottomBun", "לחמנייה", 50, 166, 334, 0, 2],
+  ["trophy", "", 104, 0, 0, 0, -4],
+  ["c1", "", 40, 82, 116, -10, 4],
+  ["c2", "", 40, 90, 164, 8, -3],
+  ["c3", "", 40, 98, 212, -6, 3],
+  ["c4", "", 40, 106, 260, 6, -2],
+  ["podium", "", 56, 122, 316, 0, 0],
 ];
-const STACK_H = 216, EXPL_H = 384;
+const STACK_H = 178, EXPL_H = 372;
 
-export function mountBurgerIntro(host, opts) {
+export function mountRankIntro(host, opts) {
   const name = esc(opts.name || "APP");
   const headline = opts.headline ?? "ברוכים הבאים";
   const subtitle = esc(opts.subtitle ?? "");
@@ -36,7 +37,7 @@ export function mountBurgerIntro(host, opts) {
     <div class="bi-b bu-b"><h1 class="bi-head">${esc(opts.welcome ?? "ברוכים הבאים")}<br/><em><bdi>${name}.</bdi></em></h1>${subtitle ? `<p class="bi-sub">${subtitle}</p>` : ""}</div>
     <button type="button" class="bu-burger" aria-label="פתיחה">
       <span class="bu-shadow"></span>
-      ${LAYERS.map(([k, label], i) => `<span class="bu-layer" data-i="${i}">${SVG[k]}<span class="bu-label bu-${i % 2 ? "l" : "r"}">${label}</span></span>`).join("")}
+      ${LAYERS.map(([k, label], i) => `<span class="bu-layer" data-i="${i}">${SVG[k]}${label ? `<span class="bu-label bu-${i % 2 ? "l" : "r"}">${label}</span>` : ""}</span>`).join("")}
     </button>
     <div class="bi-hint">${esc(opts.hint ?? "החליקו למעלה")}</div>
     <div class="bi-actions">${buttons.map(b => `<button type="button" class="bi-btn${b.dark ? " bi-btn-dark" : ""}" data-id="${esc(b.id)}">${esc(b.label)}</button>`).join("")}</div>`;

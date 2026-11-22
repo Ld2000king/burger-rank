@@ -1,13 +1,14 @@
-// Burger-bite tap feedback: a toothed bite out of the tapped edge + flying crumbs, then it heals.
+// Tap feedback: a soft ripple from the tap point + a small confetti burst.
 const SEL = ".btn,.opt,.chip,.bi-btn,.seg button,.icon-btn,.card,.hero";
 const DUR = 560;
-const CRUMBS = ["#E3A857", "#F3C27A", "#6B3A22", "#7BC25A", "#F1C232"];
+const CRUMBS = ["#E8B730", "#B9C0C8", "#CD8A4E", "#F07A62", "#7BC25A"];
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function startBite(el, x, delay = 0) {
   el.classList.remove("biting");
   void el.offsetWidth; // restart
   el.style.setProperty("--bx", `${x}px`);
+  el.style.setProperty("--by", `${el._by ?? 0}px`);
   el.style.animationDelay = `${-delay}ms`;
   el.classList.add("biting");
   clearTimeout(el._biteT);
@@ -29,9 +30,9 @@ document.addEventListener("pointerdown", e => {
   const el = e.target.closest(SEL);
   if (!el || el.disabled) return;
   const r = el.getBoundingClientRect();
-  const x = Math.min(Math.max(e.clientX - r.left, 18), r.width - 18);
+  const x = e.clientX - r.left; el._by = e.clientY - r.top;
   startBite(el, x);
-  crumbs(r.left + x, r.top + 2);
+  crumbs(e.clientX, e.clientY);
   last = { el, x, t: performance.now(), cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
   try { navigator.vibrate?.(8); } catch {}
 }, { capture: true, passive: true });

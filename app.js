@@ -1,6 +1,7 @@
-import { mountBurgerIntro } from "./burger-intro.js";
+import { mountRankIntro } from "./rank-intro.js";
+import { TOPICS, CUSTOM, topicOf, customTopic } from "./topics.js";
 import { createBackend, myGroupIds, rid, JoinError } from "./backend.js";
-import "./bite.js";
+import "./tap.js";
 
 /* ---------- icons (Lucide, 2px stroke) ---------- */
 const P = {
@@ -28,24 +29,19 @@ const P = {
   alert:'<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>',
 };
 const ic = (n, cls = "") => `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[n]}</svg>`;
-const BURGER_ART = `<svg viewBox="0 0 120 120" aria-hidden="true"><ellipse cx="60" cy="108" rx="40" ry="5" fill="currentColor" opacity=".08"/><path d="M18 84h84a6 6 0 0 1-6 14H24a6 6 0 0 1-6-14Z" fill="#E3A857"/><rect x="16" y="68" width="88" height="14" rx="7" fill="#6B3A22"/><path d="M16 66h88l-8 6-8-6-8 6-8-6-8 6-8-6-8 6-8-6-8 6-8-6-8 6z" fill="#F1C232"/><rect x="14" y="58" width="92" height="8" rx="4" fill="#6AA84F"/><path d="M18 56c0-20 19-34 42-34s42 14 42 34Z" fill="#E3A857"/><g fill="#FFF3D6"><ellipse cx="44" cy="38" rx="3" ry="1.6"/><ellipse cx="60" cy="32" rx="3" ry="1.6"/><ellipse cx="76" cy="40" rx="3" ry="1.6"/><ellipse cx="52" cy="46" rx="3" ry="1.6"/><ellipse cx="70" cy="48" rx="3" ry="1.6"/></g></svg>`;
+const BURGER_ART = `<svg viewBox="0 0 120 120" aria-hidden="true"><ellipse cx="60" cy="110" rx="46" ry="4" fill="currentColor" opacity=".08"/><rect x="44" y="60" width="32" height="48" rx="4" fill="#E8B730"/><rect x="12" y="76" width="32" height="32" rx="4" fill="#B9C0C8"/><rect x="76" y="86" width="32" height="22" rx="4" fill="#CD8A4E"/><text x="60" y="92" text-anchor="middle" font-size="18" font-weight="700" fill="#fff" font-family="Heebo,sans-serif">1</text><text x="28" y="98" text-anchor="middle" font-size="16" font-weight="700" fill="#fff" font-family="Heebo,sans-serif">2</text><text x="92" y="102" text-anchor="middle" font-size="14" font-weight="700" fill="#fff" font-family="Heebo,sans-serif">3</text><path d="M60 18l6 12 13 2-9.5 9 2.3 13L60 48l-11.8 6 2.3-13-9.5-9 13-2z" fill="#E8B730"/></svg>`;
 
 /* ---------- helpers ---------- */
-const CRITERIA = [
-  { id: "taste", label: "טעם", hint: "הביס הראשון, האיזון" },
-  { id: "patty", label: "קציצה", hint: "עסיסיות, צלייה, מידת עשייה" },
-  { id: "bun", label: "לחמנייה", hint: "רכה, טרייה, מחזיקה" },
-  { id: "toppings", label: "תוספות ורטבים", hint: "רטבים, ירקות, גבינה" },
-  { id: "value", label: "תמורה למחיר", hint: "שווה את הכסף?" },
-];
+const T = () => topicOf(S.groups[S.gid]);
+const CRIT = () => T().criteria;
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const ls = {
-  get(k, d) { try { const v = localStorage.getItem("bunrank:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { localStorage.setItem("bunrank:" + k, JSON.stringify(v)); } catch {} },
+  get(k, d) { try { const v = localStorage.getItem("ranks:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("ranks:" + k, JSON.stringify(v)); } catch {} },
 };
 const fmt = n => (Number.isInteger(n) ? n.toFixed(0) : n.toFixed(1));
 const avg = a => (a.length ? Math.round((a.reduce((s, x) => s + x, 0) / a.length) * 10) / 10 : null);
-const scoreOf = scores => avg(CRITERIA.map(c => scores?.[c.id]).filter(v => v != null)) ?? 0;
+const scoreOf = scores => avg(CRIT().map(c => scores?.[c.id]).filter(v => v != null)) ?? 0;
 const initial = s => (String(s || "?").trim()[0] || "?").toUpperCase();
 const plural = (n, one, many) => (n === 1 ? one : `${n} ${many}`);
 const joinUrl = code => `${location.origin}${location.pathname}?join=${code}`;
@@ -60,7 +56,7 @@ function places() {
   const members = Object.fromEntries(S.data.members.map(m => [m.id, m]));
   return S.data.places.map(p => {
     const rs = S.data.ratings.filter(r => r.pid === p.id && r.scores);
-    const crit = Object.fromEntries(CRITERIA.map(c => [c.id, avg(rs.map(r => r.scores[c.id]).filter(v => v != null))]));
+    const crit = Object.fromEntries(CRIT().map(c => [c.id, avg(rs.map(r => r.scores[c.id]).filter(v => v != null))]));
     return { ...p, raters: rs.map(r => ({ ...r, who: r.uid === be.uid ? "אני" : members[r.uid]?.name || "חבר שעזב" })), crit, total: avg(rs.map(r => scoreOf(r.scores))) ?? 0, mine: rs.find(r => r.uid === be.uid) || null };
   });
 }
@@ -117,10 +113,10 @@ function compress(file) {
   });
 }
 async function share(text, url) {
-  try { if (navigator.share) { await navigator.share({ title: "BunRank", text, url }); return; } } catch (e) { if (e?.name === "AbortError") return; }
+  try { if (navigator.share) { await navigator.share({ title: "Ranks", text, url }); return; } } catch (e) { if (e?.name === "AbortError") return; }
   try { await navigator.clipboard.writeText(url ? `${text}\n${url}` : text); toast("הועתק — אפשר להדביק בוואטסאפ"); } catch { toast("לא הצלחנו לשתף. העתיקו את הקוד ידנית"); }
 }
-const inviteText = g => `בואו לדרג איתי מקומות המבורגר בקבוצה "${g.name}" 🍔\nקוד הצטרפות: ${g.code}`;
+const inviteText = g => { const t = topicOf(g); return `בואו לדרג איתי ${t.name} בקבוצה "${g.name}" ${t.emoji}\nקוד הצטרפות: ${g.code}`; };
 
 /* ---------- groups ---------- */
 async function loadGroups() {
@@ -141,8 +137,8 @@ function selectGroup(gid) {
   });
   render();
 }
-async function createGroup(name) {
-  const id = await be.createGroup(name, S.name);
+async function createGroup(name, topic) {
+  const id = await be.createGroup(name, S.name, topic);
   S.groups[id] = await be.groupInfo(id); selectGroup(id); return id;
 }
 async function joinGroup(code) {
@@ -173,7 +169,7 @@ function rowHTML(p, rank) {
 function render() {
   const isDark = document.documentElement.dataset.theme === "dark";
   const g = S.groups[S.gid];
-  const head = `<header class="top"><div class="brand"><img src="icons/icon-192.png" alt="">BunRank</div>
+  const head = `<header class="top"><div class="brand"><img src="icons/icon-192.png" alt="">Ranks</div>
     <div class="top-actions"><button class="icon-btn" data-act="theme" aria-label="${isDark ? "מצב בהיר" : "מצב כהה"}">${ic(isDark ? "sun" : "moon")}</button><button class="icon-btn" data-act="settings" aria-label="הגדרות">${ic("settings")}</button></div></header>`;
   if (!g) {
     app.innerHTML = `${head}<div class="empty">${BURGER_ART}<h2>עוד אין לכם קבוצה</h2><p>צרו קבוצה והזמינו חברים, או הצטרפו לקבוצה של חבר עם הקוד שהוא שלח.</p>
@@ -189,17 +185,17 @@ function render() {
   const members = S.data?.members || [];
   let body;
   if (S.loading) body = `<div class="empty"><p>טוענים את הטבלה…</p></div>`;
-  else if (!all.length) body = `<div class="empty">${BURGER_ART}<h2>הטבלה עוד ריקה</h2><p>דרגו את מקום ההמבורגר הראשון. כל חבר בקבוצה ידרג אותו גם, והממוצע יעלה לפודיום.</p></div>`;
+  else if (!all.length) body = `<div class="empty">${BURGER_ART}<h2>הטבלה עוד ריקה</h2><p>הוסיפו את הדירוג הראשון. כל חבר בקבוצה מדרג גם, והממוצע עולה לפודיום.</p></div>`;
   else body = `${S.sort === "rank" && !q ? podiumHTML(top) : ""}
-    <label class="search">${ic("search")}<input type="search" placeholder="חיפוש מקום" value="${esc(S.q)}" aria-label="חיפוש"></label>
+    <label class="search">${ic("search")}<input type="search" placeholder="חיפוש ${T().item}" value="${esc(S.q)}" aria-label="חיפוש"></label>
     <div class="chips" role="group" aria-label="תצוגה">${[["rank", "דירוג"], ["mine", "חסר הדירוג שלי"], ["recent", "אחרונים"]].map(([k, l]) => `<button class="chip" data-sort="${k}" aria-pressed="${S.sort === k}">${l}</button>`).join("")}</div>
-    ${list.length ? `<ul class="list">${list.map(p => rowHTML(p, rk[p.id])).join("")}</ul>` : `<div class="empty" style="padding-top:var(--s3)"><p>${S.sort === "mine" ? "דירגתם את כל המקומות בקבוצה. יפה!" : q ? `לא מצאנו את "${esc(S.q)}"` : "כל המקומות כבר על הפודיום"}</p></div>`}`;
+    ${list.length ? `<ul class="list">${list.map(p => rowHTML(p, rk[p.id])).join("")}</ul>` : `<div class="empty" style="padding-top:var(--s3)"><p>${S.sort === "mine" ? `דירגתם את כל ה${T().items} בקבוצה. יפה!` : q ? `לא מצאנו את "${esc(S.q)}"` : "כל המקומות כבר על הפודיום"}</p></div>`}`;
   app.innerHTML = `${head}
-    <button class="group-pick" data-act="groups"><span class="gp-ic">${ic("users")}</span><span class="gp-body"><span class="gp-label">הקבוצה שלכם</span><span class="gp-name">${esc(g.name)}</span></span>${ic("down")}</button>
+    <button class="group-pick" data-act="groups"><span class="gp-ic">${ic("users")}</span><span class="gp-body"><span class="gp-label">${T().emoji} ${esc(T().name)}</span><span class="gp-name">${esc(g.name)}</span></span>${ic("down")}</button>
     <h1 class="title">טבלת הדירוג</h1>
-    <p class="lead">${plural(all.length, "מקום אחד", "מקומות")} · ${plural(members.length, "חבר אחד", "חברים")}${be.kind === "local" ? " · שמור רק במכשיר הזה" : ""}</p>
+    <p class="lead">${all.length} ${T().items} · ${plural(members.length, "חבר אחד", "חברים")}${be.kind === "local" ? " · שמור רק במכשיר הזה" : ""}</p>
     ${body}
-    <div class="dock"><div class="inner"><button class="btn btn-primary" data-act="add">${ic("plus")}דרגו מקום</button><button class="icon-btn dock-ic" data-act="invite" aria-label="הזמנת חברים">${ic("userPlus")}</button></div></div>`;
+    <div class="dock"><div class="inner"><button class="btn btn-primary" data-act="add">${ic("plus")}דרגו ${T().item}</button><button class="icon-btn dock-ic" data-act="invite" aria-label="הזמנת חברים">${ic("userPlus")}</button></div></div>`;
   justAdded = null;
   const inp = app.querySelector(".search input");
   if (inp) inp.oninput = e => { S.q = e.target.value; const pos = e.target.selectionStart; render(); const n = app.querySelector(".search input"); n?.focus(); n?.setSelectionRange(pos, pos); };
@@ -232,14 +228,43 @@ function openName(next) {
   });
 }
 
+/* ---------- topic picker ---------- */
+function topicPickerHTML(tp) {
+  return `<p class="group-label">מה מדרגים?</p><div class="topics">${[...TOPICS, CUSTOM].map(t => `<button type="button" class="topic" data-topic="${t.id}" aria-pressed="${tp.id === t.id}"><span class="em">${t.emoji}</span>${t.name}</button>`).join("")}</div>
+    ${tp.id === "custom" ? `<div class="custom-topic"><label class="field"><span>מה מדרגים?</span><input class="input" data-cname maxlength="24" placeholder="למשל: שווארמה" value="${esc(tp.name)}"></label>
+      <p class="group-label">על מה נותנים ציון? (עד 5)</p>${[0, 1, 2, 3, 4].map(i => `<input class="input crit-in" data-crit="${i}" maxlength="18" placeholder="${["טעם", "שירות", "מחיר", "", ""][i] ? "למשל: " + ["טעם", "שירות", "מחיר"][i] : "קטגוריה נוספת (לא חובה)"}" value="${esc(tp.crit[i] || "")}">`).join("")}</div>`
+      : `<p class="crit-preview">ציון על: ${TOPICS.find(t => t.id === tp.id).criteria.map(c => c.label).join(" · ")}</p>`}`;
+}
+// tp = { id, name, crit[] } — returns a full topic or null if custom is incomplete
+function topicFromPick(tp) {
+  if (tp.id !== "custom") return TOPICS.find(t => t.id === tp.id);
+  if (!tp.name.trim() || !tp.crit.some(c => c.trim())) return null;
+  return customTopic(tp.name, tp.crit);
+}
+function wireTopicPicker(root, tp, redraw, onChange) {
+  root.querySelectorAll("[data-topic]").forEach(b => b.onclick = () => { tp.id = b.dataset.topic; redraw(); });
+  const cn = root.querySelector("[data-cname]"); if (cn) cn.oninput = e => { tp.name = e.target.value; onChange(); };
+  root.querySelectorAll("[data-crit]").forEach(i => i.oninput = e => { tp.crit[+i.dataset.crit] = e.target.value; onChange(); });
+}
+
 /* ---------- create / join / invite / switch ---------- */
 function openCreate() {
-  openSheet(`${sheetHead("קבוצה חדשה")}<form id="cf"><label class="field"><span>שם הקבוצה</span><input class="input" name="n" maxlength="32" placeholder="למשל: החבר׳ה מהצבא" required></label><button class="btn btn-primary" type="submit">יצירת הקבוצה</button></form>`, sh => {
+  const tp = { id: "burger", name: "", crit: [] };
+  let gname = "";
+  const draw = sh => {
+    sh.querySelector("#tp").innerHTML = topicPickerHTML(tp);
+    wireTopicPicker(sh, tp, () => draw(sh), () => check(sh));
+    check(sh);
+  };
+  const check = sh => { sh.querySelector("[type=submit]").disabled = !(gname.trim() && topicFromPick(tp)); };
+  openSheet(`${sheetHead("קבוצה חדשה")}<form id="cf"><label class="field"><span>שם הקבוצה</span><input class="input" name="n" maxlength="32" placeholder="למשל: החבר׳ה מהצבא" required></label><div id="tp"></div><button class="btn btn-primary" type="submit" disabled>יצירת הקבוצה</button></form>`, sh => {
     const f = sh.querySelector("#cf"); setTimeout(() => f.elements.n.focus(), 300);
+    f.elements.n.oninput = e => { gname = e.target.value; check(sh); };
+    draw(sh);
     f.onsubmit = async e => {
-      e.preventDefault(); const n = f.elements.n.value.trim(); if (!n) return f.elements.n.focus();
+      e.preventDefault(); const topic = topicFromPick(tp); if (!gname.trim() || !topic) return;
       const b = f.querySelector("[type=submit]"); b.disabled = true;
-      try { await createGroup(n); closeSheet(); setTimeout(() => openInvite(true), 320); }
+      try { await createGroup(gname.trim(), topic); closeSheet(); setTimeout(() => openInvite(true), 320); }
       catch { b.disabled = false; toast("לא הצלחנו ליצור את הקבוצה. בדקו את החיבור ונסו שוב"); }
     };
   });
@@ -290,23 +315,23 @@ function openRate(pid) {
   const all = places();
   const p = pid ? all.find(x => x.id === pid) : null;
   const mine = p?.mine;
-  const sc = mine?.scores || Object.fromEntries(CRITERIA.map(c => [c.id, 7]));
+  const sc = mine?.scores || Object.fromEntries(CRIT().map(c => [c.id, 7]));
   let photo = p?.photo || null;
   const others = p ? p.raters.filter(r => r.uid !== be.uid).length : 0;
-  openSheet(`<form id="ed" novalidate>${sheetHead(!p ? "דירוג מקום" : mine ? "הדירוג שלי" : "דרגו גם אתם")}
+  openSheet(`<form id="ed" novalidate>${sheetHead(!p ? `דירוג ${T().item}` : mine ? "הדירוג שלי" : "דרגו גם אתם")}
     ${p && others ? `<p class="lead" style="margin-top:-16px">${plural(others, "חבר אחד כבר דירג", "חברים כבר דירגו")}. הציון שלך ייכנס לממוצע.</p>` : ""}
-    <label class="field"><span>שם המקום</span><input class="input" name="name" required placeholder="למשל: מוזס" value="${esc(p?.name || "")}" list="places" autocomplete="off" ${p ? "readonly" : ""}></label>
+    <label class="field"><span>שם ה${T().item}</span><input class="input" name="name" required placeholder="${T().ex ? "למשל: " + esc(T().ex) : ""}" value="${esc(p?.name || "")}" list="places" autocomplete="off" ${p ? "readonly" : ""}></label>
     <datalist id="places">${all.map(x => `<option value="${esc(x.name)}">`).join("")}</datalist>
     <p class="hint-line" id="exists" hidden></p>
-    <label class="field"><span>עיר (לא חובה)</span><input class="input" name="city" placeholder="למשל: רחובות" value="${esc(p?.city || "")}" autocomplete="off"></label>
+    <label class="field"><span>${esc(T().sub || "פרט נוסף")} (לא חובה)</span><input class="input" name="city" placeholder="" value="${esc(p?.city || "")}" autocomplete="off"></label>
     <label class="field"><span>תמונה (לא חובה)</span><div class="photo-pick" id="pp">${photo ? `<img src="${photo}" alt="">` : `${ic("camera")}<span>צלמו או בחרו תמונה</span>`}<input type="file" accept="image/*" aria-label="הוספת תמונה"></div></label>
-    <label class="field"><span>מה אכלת? (לא חובה)</span><input class="input" name="dish" placeholder="למשל: דאבל צ׳יזבורגר" value="${esc(mine?.dish || "")}" autocomplete="off"></label>
+    ${T().dish ? `<label class="field"><span>${esc(T().dish)} (לא חובה)</span><input class="input" name="dish" value="${esc(mine?.dish || "")}" autocomplete="off"></label>` : ""}
     <div class="total-live"><span style="font-weight:600">הציון שלי</span><b id="tl">${fmt(scoreOf(sc))}</b></div>
-    ${CRITERIA.map(c => sliderHTML(c, sc[c.id] ?? 7)).join("")}
+    ${CRIT().map(c => sliderHTML(c, sc[c.id] ?? 7)).join("")}
     <label class="field"><span>הערות</span><textarea class="input" name="notes" placeholder="מה היה מיוחד? מה הייתם משנים?">${esc(mine?.notes || "")}</textarea></label>
     <button class="btn btn-primary" type="submit">${!p ? "הוספה לטבלה" : mine ? "שמירת השינויים" : "שמירת הדירוג שלי"}</button></form>`, sh => {
     const f = sh.querySelector("#ed");
-    const readScores = () => Object.fromEntries(CRITERIA.map(c => [c.id, +f.elements[c.id].value]));
+    const readScores = () => Object.fromEntries(CRIT().map(c => [c.id, +f.elements[c.id].value]));
     const findExisting = () => { const n = f.elements.name.value.trim().toLowerCase(); return n ? all.find(x => x.name.trim().toLowerCase() === n) : null; };
     f.addEventListener("input", e => {
       if (e.target.type === "range") { sh.querySelector(`[data-out=${e.target.name}]`).textContent = e.target.value; sh.querySelector("#tl").textContent = fmt(scoreOf(readScores())); }
@@ -320,7 +345,7 @@ function openRate(pid) {
     f.onsubmit = async e => {
       e.preventDefault();
       const name = f.elements.name.value.trim();
-      if (!name) { f.elements.name.focus(); f.elements.name.style.borderColor = "var(--danger)"; toast("חסר שם למקום"); return; }
+      if (!name) { f.elements.name.focus(); f.elements.name.style.borderColor = "var(--danger)"; toast("חסר שם"); return; }
       const btn = f.querySelector("[type=submit]"); btn.disabled = true;
       try {
         const target = p || findExisting();
@@ -328,7 +353,7 @@ function openRate(pid) {
           ? { id: target.id, name: target.name, city: f.elements.city.value.trim() || target.city || "", photo: photo || target.photo || null, addedBy: target.addedBy, createdAt: target.createdAt }
           : { id: rid(), name, city: f.elements.city.value.trim(), photo, addedBy: be.uid, createdAt: Date.now() };
         await be.savePlace(S.gid, place);
-        await be.saveRating(S.gid, { id: `${place.id}__${be.uid}`, pid: place.id, uid: be.uid, scores: readScores(), dish: f.elements.dish.value.trim(), notes: f.elements.notes.value.trim(), at: Date.now() });
+        await be.saveRating(S.gid, { id: `${place.id}__${be.uid}`, pid: place.id, uid: be.uid, scores: readScores(), dish: f.elements.dish?.value.trim() || "", notes: f.elements.notes.value.trim(), at: Date.now() });
         justAdded = place.id; closeSheet();
         setTimeout(() => { const r = rankMap()[place.id]; toast(mine ? "השינויים נשמרו" : r <= 3 ? `עלה לפודיום — מקום ${r}!` : `נכנס לטבלה במקום ${r}`); app.querySelector(`[data-open="${place.id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }); }, 150);
       } catch { btn.disabled = false; toast("הדירוג לא נשמר. בדקו את החיבור ונסו שוב"); }
@@ -343,15 +368,15 @@ function openDetail(pid) {
   openSheet(`${sheetHead(esc(p.name))}
     ${p.photo ? `<div class="d-img"><img src="${p.photo}" alt="${esc(p.name)}"></div>` : ""}
     <div class="total-live"><span><span style="display:block;font-weight:600">${n > 1 ? `ממוצע של ${n} דירוגים` : n ? "דירוג אחד" : "עוד לא דורג"}</span><span style="color:var(--text-muted);font-size:14px">${r ? `מקום ${r} מתוך ${ranked().length}` : ""}${p.city ? ` · ${esc(p.city)}` : ""}</span></span><b>${n ? fmt(p.total) : "–"}</b></div>
-    <div class="bars">${CRITERIA.map(c => `<div class="bar-row"><span>${c.label}</span><span class="bar"><i style="width:${(p.crit[c.id] ?? 0) * 10}%"></i></span><b>${p.crit[c.id] != null ? fmt(p.crit[c.id]) : "–"}</b></div>`).join("")}</div>
+    <div class="bars">${CRIT().map(c => `<div class="bar-row"><span>${c.label}</span><span class="bar"><i style="width:${(p.crit[c.id] ?? 0) * 10}%"></i></span><b>${p.crit[c.id] != null ? fmt(p.crit[c.id]) : "–"}</b></div>`).join("")}</div>
     ${n ? `<p class="group-label">מי דירג</p><div class="group">${p.raters.sort((a, b) => scoreOf(b.scores) - scoreOf(a.scores)).map(x => `<div class="group-row rater"><span class="r-who"><span class="avatar">${esc(initial(x.who))}</span><span><b>${esc(x.who)}</b>${x.dish ? `<small>${esc(x.dish)}</small>` : ""}</span></span><b>${fmt(scoreOf(x.scores))}</b>${x.notes ? `<span class="r-note">${esc(x.notes)}</span>` : ""}</div>`).join("")}</div>` : ""}
-    <div class="actions"><button class="btn ${p.mine ? "" : "btn-primary"}" data-d="rate">${ic(p.mine ? "pencil" : "plus")}${p.mine ? "עריכת הדירוג שלי" : "דרגו גם אתם"}</button><button class="btn" data-d="share">${ic("share")}שיתוף</button>${p.addedBy === be.uid ? `<button class="btn btn-ghost btn-danger" data-d="del">${ic("trash")}מחיקת המקום</button>` : ""}</div>`, sh => {
+    <div class="actions"><button class="btn ${p.mine ? "" : "btn-primary"}" data-d="rate">${ic(p.mine ? "pencil" : "plus")}${p.mine ? "עריכת הדירוג שלי" : "דרגו גם אתם"}</button><button class="btn" data-d="share">${ic("share")}שיתוף</button>${p.addedBy === be.uid ? `<button class="btn btn-ghost btn-danger" data-d="del">${ic("trash")}מחיקה מהטבלה</button>` : ""}</div>`, sh => {
     sh.addEventListener("click", async e => {
       const a = e.target.closest("[data-d]")?.dataset.d;
       if (a === "rate") openRate(pid);
-      if (a === "share") share(`${p.name} — ${fmt(p.total)}/10 🍔 ${r ? `(מקום ${r} בקבוצה "${S.groups[S.gid].name}")` : ""}`);
-      if (a === "del" && await confirmDialog({ title: "למחוק את המקום?", text: `"${p.name}" יימחק מהטבלה של כל הקבוצה. אי אפשר לבטל.`, ok: "מחיקה", danger: true })) {
-        try { await be.deletePlace(S.gid, pid); closeSheet(); toast("המקום נמחק"); } catch { toast("לא הצלחנו למחוק. נסו שוב"); }
+      if (a === "share") share(`${p.name} — ${fmt(p.total)}/10 ${T().emoji} ${r ? `(מקום ${r} בקבוצה "${S.groups[S.gid].name}")` : ""}`);
+      if (a === "del" && await confirmDialog({ title: `למחוק את "${p.name}"?`, text: `"${p.name}" יימחק מהטבלה של כל הקבוצה. אי אפשר לבטל.`, ok: "מחיקה", danger: true })) {
+        try { await be.deletePlace(S.gid, pid); closeSheet(); toast("נמחק מהטבלה"); } catch { toast("לא הצלחנו למחוק. נסו שוב"); }
       }
     });
   });
@@ -384,16 +409,16 @@ function openSettings() {
 }
 
 /* ---------- onboarding (goodonboarding) ---------- */
-const GOALS = [["🏆", "למצוא את מקום ההמבורגר הכי טוב"], ["👥", "להכריע סוף סוף מי צודק בחבר׳ה"], ["📍", "לזכור איפה היה טעים ואיפה לא"], ["💸", "לדעת איפה שווה את הכסף"], ["🗺️", "לנסות כל פעם מקום חדש"]];
+const GOALS = [["🏆", "לגלות מה הכי טוב באמת"], ["👥", "להכריע סוף סוף מי צודק בחבר׳ה"], ["📝", "לזכור מה אהבנו ומה לא"], ["💸", "לדעת מה שווה את הכסף"], ["🎯", "לבחור מה לנסות בפעם הבאה"]];
 const PAINS = [
-  ["שוכחים איך קראו למקום ההוא", "כל מקום נשמר בטבלה של הקבוצה, עם תמונה ומה הזמנתם"],
+  ["שוכחים איך קראו לזה", "כל דבר נשמר בטבלה של הקבוצה, עם תמונה והערות"],
   ["כל אחד בקבוצה זוכר את זה אחרת", "כל חבר מדרג בעצמו, והציון הוא הממוצע של כולם"],
   ["ויכוחים בלי סוף מי הכי טוב", "פודיום: מקום ראשון, שני ושלישי, שמתעדכן לבד"],
-  ["משלמים הרבה על המבורגר בינוני", "ציון ״תמורה למחיר״ לכל מקום"],
+  ["מבזבזים זמן וכסף על דברים בינוניים", "רואים מראש מה החבר׳ה דירגו גבוה"],
   ["לא סומכים על ביקורות ברשת", "רק החברים שלכם מדרגים, אף אחד אחר"],
 ];
 function startOnboarding(joinCode = null) {
-  const st = { step: 0, goal: ls.get("ob-goal", null), pains: [], name: S.name, mode: joinCode ? "join" : "create", gname: "", code: joinCode || "", demo: null, place: null };
+  const st = { step: 0, goal: ls.get("ob-goal", null), pains: [], name: S.name, mode: joinCode ? "join" : "create", gname: "", tp: { id: "burger", name: "", crit: [] }, code: joinCode || "", demo: null, place: null };
   const ob = document.createElement("div"); ob.className = "ob"; ob.setAttribute("role", "dialog"); ob.setAttribute("aria-label", "שאלון פתיחה");
   document.body.appendChild(ob); document.body.style.overflow = "hidden";
   const STEPS = 8;
@@ -416,19 +441,19 @@ function startOnboarding(joinCode = null) {
     } else if (s === 4) {
       body = `<h1>עם מי מדרגים?</h1><p class="lead">צרו קבוצה חדשה, או הצטרפו לקבוצה של חבר.</p>
         <div class="seg seg-wide" role="tablist"><button data-mode="create" aria-pressed="${st.mode === "create"}">קבוצה חדשה</button><button data-mode="join" aria-pressed="${st.mode === "join"}">יש לי קוד</button></div>
-        ${st.mode === "create" ? `<label class="field" style="margin-top:var(--s3)"><span>שם הקבוצה</span><input class="input" id="og" maxlength="32" placeholder="למשל: החבר׳ה מהצבא" value="${esc(st.gname)}"></label>`
+        ${st.mode === "create" ? `<label class="field" style="margin-top:var(--s3)"><span>שם הקבוצה</span><input class="input" id="og" maxlength="32" placeholder="למשל: החבר׳ה מהצבא" value="${esc(st.gname)}"></label>${topicPickerHTML(st.tp)}`
           : `<label class="field" style="margin-top:var(--s3)"><span>קוד הצטרפות</span><input class="input code-input" id="oc" maxlength="6" placeholder="ABC123" dir="ltr" autocapitalize="characters" value="${esc(st.code)}"></label>`}`;
-      const ok = st.mode === "create" ? st.gname.trim() : st.code.length === 6;
+      const ok = st.mode === "create" ? st.gname.trim() && topicFromPick(st.tp) : st.code.length === 6;
       foot = `<button class="btn btn-primary" data-group ${ok ? "" : "disabled"}>${st.mode === "create" ? "יצירת הקבוצה" : "הצטרפות"}</button>`;
     } else if (s === 5) {
       body = `<div class="processing"><div class="stack"><i></i><i></i><i></i><i></i><i></i></div><h1 style="font-size:24px">מכינים את הפודיום…</h1><p class="lead" style="margin:0">${esc(S.groups[S.gid]?.name || "")}</p></div>`;
       setTimeout(() => { if (st.step === 5) { st.step = 6; draw(); } }, 1500);
     } else if (s === 6) {
-      const sc = st.demo || (st.demo = Object.fromEntries(CRITERIA.map(c => [c.id, 7])));
-      body = `<h1>דרגו את מקום ההמבורגר האחרון שהייתם בו</h1><p class="lead">לוקח חצי דקה. תמונה ופרטים אפשר להוסיף אחר כך.</p>
-        <label class="field"><span>שם המקום</span><input class="input" id="dp" placeholder="למשל: מוזס" value="${esc(st.dplace || "")}"></label>
+      const sc = st.demo || (st.demo = Object.fromEntries(CRIT().map(c => [c.id, 7])));
+      body = `<h1>הדירוג הראשון שלכם</h1><p class="lead">לוקח חצי דקה. תמונה ופרטים אפשר להוסיף אחר כך.</p>
+        <label class="field"><span>שם ה${T().item}</span><input class="input" id="dp" placeholder="${T().ex ? "למשל: " + esc(T().ex) : ""}" value="${esc(st.dplace || "")}"></label>
         <div class="total-live"><span style="font-weight:600">הציון שלי</span><b id="dtl">${fmt(scoreOf(sc))}</b></div>
-        ${CRITERIA.map(c => `<div class="slider"><div class="slider-top"><span>${c.label}</span><b data-out="${c.id}">${sc[c.id]}</b></div><input type="range" min="1" max="10" value="${sc[c.id]}" name="${c.id}" aria-label="${c.label}"></div>`).join("")}`;
+        ${CRIT().map(c => `<div class="slider"><div class="slider-top"><span>${c.label}</span><b data-out="${c.id}">${sc[c.id]}</b></div><input type="range" min="1" max="10" value="${sc[c.id]}" name="${c.id}" aria-label="${c.label}"></div>`).join("")}`;
       foot = `<button class="btn btn-primary" data-demo ${st.dplace ? "" : "disabled"}>הכניסו לטבלה</button><button class="btn btn-ghost" data-skip>אדרג אחר כך</button>`;
     } else if (s === 7) {
       const g = S.groups[S.gid], p = st.place;
@@ -438,7 +463,12 @@ function startOnboarding(joinCode = null) {
     }
     ob.innerHTML = `<div class="ob-top">${s > 0 && s < 5 ? `<button class="icon-btn" data-back aria-label="חזרה">${ic("back")}</button>` : `<span style="width:48px"></span>`}<div class="progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div></div><div class="ob-body enter">${body}</div>${foot ? `<div class="ob-foot">${foot}</div>` : ""}`;
     const on = ob.querySelector("#on"); if (on) on.oninput = e => { st.name = e.target.value; ob.querySelector("[data-next]").disabled = !st.name.trim(); };
-    const og = ob.querySelector("#og"); if (og) og.oninput = e => { st.gname = e.target.value; ob.querySelector("[data-group]").disabled = !st.gname.trim(); };
+    const og = ob.querySelector("#og");
+    if (og) {
+      const chk = () => { ob.querySelector("[data-group]").disabled = !(st.gname.trim() && topicFromPick(st.tp)); };
+      og.oninput = e => { st.gname = e.target.value; chk(); };
+      wireTopicPicker(ob, st.tp, () => { const y = ob.querySelector(".ob-body").scrollTop; draw(); ob.querySelector(".ob-body").scrollTop = y; ob.querySelector(".ob-body").classList.remove("enter"); }, chk);
+    }
     const oc = ob.querySelector("#oc"); if (oc) oc.oninput = e => { e.target.value = st.code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); ob.querySelector("[data-group]").disabled = st.code.length !== 6; };
     if (s === 6) {
       ob.querySelector("#dp").oninput = e => { st.dplace = e.target.value; ob.querySelector("[data-demo]").disabled = !st.dplace.trim(); };
@@ -459,7 +489,7 @@ function startOnboarding(joinCode = null) {
     if ("group" in t.dataset) {
       t.disabled = true;
       try {
-        if (st.mode === "create") await createGroup(st.gname.trim()); else await joinGroup(st.code);
+        if (st.mode === "create") await createGroup(st.gname.trim(), topicFromPick(st.tp)); else await joinGroup(st.code);
         // joined a group that already has places → go straight to the table
         if (st.mode === "join" && S.data?.places?.length) { st.step = 7; } else st.step = 5;
         draw();
@@ -502,17 +532,17 @@ async function boot() {
       else openJoin(join);
     }
   };
-  let seen = false; try { seen = sessionStorage.getItem("bunrank-intro-seen") === "1"; } catch {}
+  let seen = false; try { seen = sessionStorage.getItem("ranks-intro-seen") === "1"; } catch {}
   if (seen) return afterIntro();
   const host = document.createElement("div"); document.body.appendChild(host);
-  const unmount = mountBurgerIntro(host, {
-    name: "BunRank",
-    headline: 'מי ההמבורגר<br/>הכי <span class="bi-accent">טוב?</span>',
+  const unmount = mountRankIntro(host, {
+    name: "Ranks",
+    headline: 'מה הכי<br/><span class="bi-accent">טוב?</span>',
     welcome: "ברוכים הבאים",
-    subtitle: join ? "הוזמנתם לקבוצה. בואו נדרג ביחד." : "מדרגים מקומות המבורגר עם החברים, והממוצע קובע מי על הפודיום.",
+    subtitle: join ? "הוזמנתם לקבוצה. בואו נדרג ביחד." : "מדרגים כל דבר עם החברים — אוכל, סרטים, מקומות — והממוצע קובע מי על הפודיום.",
     hint: "החליקו למעלה",
     buttons: [{ id: "go", label: ls.get("onboarded", false) && S.name ? "לטבלה שלנו" : "בואו נתחיל", dark: true }],
-    onEnter: () => { try { sessionStorage.setItem("bunrank-intro-seen", "1"); } catch {} unmount(); host.remove(); afterIntro(); },
+    onEnter: () => { try { sessionStorage.setItem("ranks-intro-seen", "1"); } catch {} unmount(); host.remove(); afterIntro(); },
   });
 }
 boot();

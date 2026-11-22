@@ -7,8 +7,8 @@ const CODE_ABC = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 export const newCode = () => Array.from({ length: 6 }, () => CODE_ABC[(Math.random() * CODE_ABC.length) | 0]).join("");
 export const rid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 const ls = {
-  get(k, d) { try { const v = localStorage.getItem("bunrank:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { localStorage.setItem("bunrank:" + k, JSON.stringify(v)); } catch {} },
+  get(k, d) { try { const v = localStorage.getItem("ranks:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("ranks:" + k, JSON.stringify(v)); } catch {} },
 };
 // Groups this device belongs to (ids only).
 export const myGroupIds = {
@@ -23,7 +23,7 @@ function localBackend() {
   let db = { groups: {}, codes: {} };
   let idb;
   const subs = new Map();
-  const open = () => idb || (idb = new Promise((res, rej) => { const r = indexedDB.open("bunrank-groups", 1); r.onupgradeneeded = () => r.result.createObjectStore("kv"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }));
+  const open = () => idb || (idb = new Promise((res, rej) => { const r = indexedDB.open("ranks-groups", 1); r.onupgradeneeded = () => r.result.createObjectStore("kv"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }));
   const load = async () => { try { const d = await open(); db = await new Promise(res => { const q = d.transaction("kv").objectStore("kv").get("db"); q.onsuccess = () => res(q.result || db); q.onerror = () => res(db); }); } catch {} };
   const save = async () => { try { const d = await open(); d.transaction("kv", "readwrite").objectStore("kv").put(db, "db"); } catch {} };
   const snap = gid => { const g = db.groups[gid]; if (!g) return null; return { group: g.info, members: Object.values(g.members), places: Object.values(g.places), ratings: Object.values(g.ratings) }; };
@@ -32,10 +32,10 @@ function localBackend() {
   return {
     kind: "local", uid,
     async init() { await load(); return uid; },
-    async createGroup(name, me) {
+    async createGroup(name, me, topic) {
       let code = newCode(); while (db.codes[code]) code = newCode();
       const id = rid();
-      db.groups[id] = { info: { id, name, code, createdBy: uid, createdAt: Date.now() }, members: { [uid]: { id: uid, name: me, joinedAt: Date.now() } }, places: {}, ratings: {} };
+      db.groups[id] = { info: { id, name, code, topic, createdBy: uid, createdAt: Date.now() }, members: { [uid]: { id: uid, name: me, joinedAt: Date.now() } }, places: {}, ratings: {} };
       db.codes[code] = id; await save(); myGroupIds.add(id); return id;
     },
     async joinByCode(code, me) {
@@ -67,11 +67,11 @@ async function firebaseBackend() {
       const user = await new Promise((res, rej) => { const un = A.onAuthStateChanged(auth, u => { if (u) { un(); res(u); } }); A.signInAnonymously(auth).catch(rej); });
       be.uid = user.uid; return user.uid;
     },
-    async createGroup(name, me) {
+    async createGroup(name, me, topic) {
       let code = newCode();
       for (let i = 0; i < 5 && (await F.getDoc(d("codes", code))).exists(); i++) code = newCode();
       const id = rid();
-      await F.setDoc(d("groups", id), { name, code, createdBy: be.uid, createdAt: Date.now() });
+      await F.setDoc(d("groups", id), { name, code, topic, createdBy: be.uid, createdAt: Date.now() });
       await F.setDoc(d("groups", id, "members", be.uid), { name: me, joinedAt: Date.now() });
       await F.setDoc(d("codes", code), { gid: id });
       myGroupIds.add(id); return id;

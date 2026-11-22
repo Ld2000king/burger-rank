@@ -1,7 +1,7 @@
 {
-  "name": "BunRank — דירוג ההמבורגרים שלנו",
-  "short_name": "BunRank",
-  "description": "מדרגים כל המבורגר שאכלתם ורואים מי באמת מספר אחת",
+  "name": "Ranks — מדרגים הכול עם החברים",
+  "short_name": "Ranks",
+  "description": "יוצרים קבוצה, מדרגים כל דבר עם החברים, והממוצע קובע מי על הפודיום",
   "lang": "he",
   "dir": "rtl",
   "start_url": "./",
