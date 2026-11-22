@@ -229,6 +229,17 @@ function openName(next) {
   });
 }
 
+/* ---------- assembly loading overlay ---------- */
+function showBuilding(text, ms = 2000) {
+  return new Promise(res => {
+    const el = document.createElement("div"); el.className = "building";
+    el.innerHTML = `<div class="processing">${buildAnimHTML()}<h1 style="font-size:24px">${esc(text)}</h1></div>`;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add("on"));
+    setTimeout(() => { el.classList.remove("on"); setTimeout(() => { el.remove(); res(); }, 250); }, ms);
+  });
+}
+
 /* ---------- topic picker ---------- */
 function topicPickerHTML(tp) {
   return `<p class="group-label">מה מדרגים?</p><div class="topics">${[...TOPICS, CUSTOM].map(t => `<button type="button" class="topic" data-topic="${t.id}" aria-pressed="${tp.id === t.id}"><span class="em">${t.emoji}</span>${t.name}</button>`).join("")}</div>
@@ -265,7 +276,7 @@ function openCreate() {
     f.onsubmit = async e => {
       e.preventDefault(); const topic = topicFromPick(tp); if (!gname.trim() || !topic) return;
       const b = f.querySelector("[type=submit]"); b.disabled = true;
-      try { await createGroup(gname.trim(), topic); closeSheet(); setTimeout(() => openInvite(true), 320); }
+      try { await createGroup(gname.trim(), topic); closeSheet(); await showBuilding("מכינים את הפודיום…"); openInvite(true); }
       catch { b.disabled = false; toast("לא הצלחנו ליצור את הקבוצה. בדקו את החיבור ונסו שוב"); }
     };
   });
@@ -393,7 +404,7 @@ function openSettings() {
     <div class="group"><div class="group-row"><span>צבעים</span><div class="seg">${[["auto", "אוטומטי"], ["light", "בהיר"], ["dark", "כהה"]].map(([k, l]) => `<button data-theme-set="${k}" aria-pressed="${t === k}">${l}</button>`).join("")}</div></div></div>
     ${g ? `<p class="group-label">הקבוצה "${esc(g.name)}"</p><div class="group"><button class="group-row" data-s="invite"><span>הזמנת חברים</span>${ic("userPlus")}</button><button class="group-row btn-danger" data-s="leave"><span>יציאה מהקבוצה</span>${ic("logout")}</button></div>` : ""}
     <p class="group-label">אחר</p>
-    <div class="group"><button class="group-row" data-s="onboarding"><span>הצגת שאלון הפתיחה מחדש</span>${ic("back")}</button></div>
+    <div class="group"><button class="group-row" data-s="anim"><span>הצגת אנימציית טעינה</span>${ic("award")}</button><button class="group-row" data-s="onboarding"><span>הצגת שאלון הפתיחה מחדש</span>${ic("back")}</button></div>
     <p class="lead" style="font-size:13px">${be.kind === "firebase" ? "מחובר — הקבוצות מסונכרנות עם החברים." : "הנתונים שמורים רק במכשיר הזה."}</p>`, sh => {
     sh.addEventListener("click", async e => {
       const th = e.target.closest("[data-theme-set]");
@@ -401,6 +412,7 @@ function openSettings() {
       const a = e.target.closest("[data-s]")?.dataset.s;
       if (a === "name") openName();
       if (a === "invite") openInvite();
+      if (a === "anim") { closeSheet(); setTimeout(() => showBuilding("ככה זה נראה 🙂"), 300); }
       if (a === "onboarding") { closeSheet(); startOnboarding(); }
       if (a === "leave" && await confirmDialog({ title: "לצאת מהקבוצה?", text: "הדירוגים שלך יישארו בקבוצה. אפשר לחזור עם הקוד.", ok: "יציאה", danger: true })) {
         try { await be.leaveGroup(S.gid); delete S.groups[S.gid]; closeSheet(); selectGroup(Object.keys(S.groups)[0] || null); toast("יצאת מהקבוצה"); } catch { toast("לא הצלחנו לצאת. נסו שוב"); }
