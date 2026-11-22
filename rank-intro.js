@@ -1,31 +1,11 @@
+import { pickSet } from "./intro-sets.js";
 // Rank intro — swipe up and the stack (trophy, topic cards, podium) rises and fans out.
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const esc = s => String(s).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
 
-const SVG = {
-  trophy: `<svg viewBox="0 0 260 104"><defs><linearGradient id="tg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#D99A12"/></linearGradient></defs>
-    <path d="M96 14h68v28c0 22-15 38-34 38S96 64 96 42Z" fill="url(#tg)"/><path d="M96 22H78c0 18 8 28 22 30M164 22h18c0 18-8 28-22 30" fill="none" stroke="#D99A12" stroke-width="6" stroke-linecap="round"/>
-    <rect x="122" y="78" width="16" height="12" fill="#D99A12"/><rect x="104" y="88" width="52" height="12" rx="4" fill="#B97F0A"/>
-    <path d="M130 28l4.5 9 10 1.5-7.2 7 1.7 10-9-4.7-9 4.7 1.7-10-7.2-7 10-1.5z" fill="#fff" opacity=".9"/><ellipse cx="112" cy="30" rx="5" ry="12" fill="#fff" opacity=".35"/></svg>`,
-  c1: `<svg viewBox="0 0 260 40"><rect x="18" y="2" width="224" height="36" rx="12" fill="#FDE7C8" stroke="rgba(0,0,0,.08)"/><text x="130" y="26" text-anchor="middle" direction="rtl" font-family="Heebo,system-ui,sans-serif" font-size="16" font-weight="700" fill="#5A3510">🍔 המבורגרים</text></svg>`,
-  c2: `<svg viewBox="0 0 260 40"><rect x="18" y="2" width="224" height="36" rx="12" fill="#DCE6FF" stroke="rgba(0,0,0,.08)"/><text x="130" y="26" text-anchor="middle" direction="rtl" font-family="Heebo,system-ui,sans-serif" font-size="16" font-weight="700" fill="#1F2E5C">🎬 סרטים</text></svg>`,
-  c3: `<svg viewBox="0 0 260 40"><rect x="18" y="2" width="224" height="36" rx="12" fill="#FFDCD3" stroke="rgba(0,0,0,.08)"/><text x="130" y="26" text-anchor="middle" direction="rtl" font-family="Heebo,system-ui,sans-serif" font-size="16" font-weight="700" fill="#6B1E12">🍕 פיצה</text></svg>`,
-  c4: `<svg viewBox="0 0 260 40"><rect x="18" y="2" width="224" height="36" rx="12" fill="#D9F2E1" stroke="rgba(0,0,0,.08)"/><text x="130" y="26" text-anchor="middle" direction="rtl" font-family="Heebo,system-ui,sans-serif" font-size="16" font-weight="700" fill="#17472A">📚 ספרים</text></svg>`,
-  podium: `<svg viewBox="0 0 260 56"><rect x="94" y="2" width="72" height="54" rx="8" fill="#E8B730"/><rect x="20" y="18" width="72" height="38" rx="8" fill="#B9C0C8"/><rect x="168" y="28" width="72" height="28" rx="8" fill="#CD8A4E"/>
-    <g font-family="Heebo,system-ui,sans-serif" font-weight="700" fill="#fff" text-anchor="middle"><text x="130" y="34" font-size="22">1</text><text x="56" y="44" font-size="18">2</text><text x="204" y="49" font-size="16">3</text></g></svg>`,
-};
-// [svg, label, height, compact y, exploded y, x drift, tilt]
-const LAYERS = [
-  ["trophy", "", 104, 0, 0, 0, -4],
-  ["c1", "", 40, 82, 116, -10, 4],
-  ["c2", "", 40, 90, 164, 8, -3],
-  ["c3", "", 40, 98, 212, -6, 3],
-  ["c4", "", 40, 106, 260, 6, -2],
-  ["podium", "", 56, 122, 316, 0, 0],
-];
-const STACK_H = 178, EXPL_H = 372;
 
 export function mountRankIntro(host, opts) {
+  const SET = pickSet(opts.set), LAYERS = SET.layers, STACK_H = SET.stack, EXPL_H = SET.expl, LAST = LAYERS.length - 1;
   const name = esc(opts.name || "APP");
   const headline = opts.headline ?? "ברוכים הבאים";
   const subtitle = esc(opts.subtitle ?? "");
@@ -37,7 +17,7 @@ export function mountRankIntro(host, opts) {
     <div class="bi-b bu-b"><h1 class="bi-head">${esc(opts.welcome ?? "ברוכים הבאים")}<br/><em><bdi>${name}.</bdi></em></h1>${subtitle ? `<p class="bi-sub">${subtitle}</p>` : ""}</div>
     <button type="button" class="bu-burger" aria-label="פתיחה">
       <span class="bu-shadow"></span>
-      ${LAYERS.map(([k, label], i) => `<span class="bu-layer" data-i="${i}">${SVG[k]}${label ? `<span class="bu-label bu-${i % 2 ? "l" : "r"}">${label}</span>` : ""}</span>`).join("")}
+      ${LAYERS.map(([svg, label], i) => `<span class="bu-layer" style="z-index:${LAYERS.length - i}">${svg}${label ? `<span class="bu-label bu-${i % 2 ? "l" : "r"}">${label}</span>` : ""}</span>`).join("")}
     </button>
     <div class="bi-hint">${esc(opts.hint ?? "החליקו למעלה")}</div>
     <div class="bi-actions">${buttons.map(b => `<button type="button" class="bi-btn${b.dark ? " bi-btn-dark" : ""}" data-id="${esc(b.id)}">${esc(b.label)}</button>`).join("")}</div>`;
@@ -65,7 +45,7 @@ export function mountRankIntro(host, opts) {
       el.style.height = `${h * k}px`;
       el.style.transform = `translate3d(${dx * e * k}px,${y}px,0) rotate(${rot * e + (bob ? Math.sin((now - bobStart) / 1000 * 1.3 + i) * bob : 0)}deg)`;
     });
-    const bottom = (LAYERS[5][3] + (LAYERS[5][4] - LAYERS[5][3]) * e + LAYERS[5][2]) * k;
+    const bottom = (LAYERS[LAST][3] + (LAYERS[LAST][4] - LAYERS[LAST][3]) * e + LAYERS[LAST][2]) * k;
     shadow.style.transform = `translate3d(0,${bottom + 10 * k}px,0) scaleX(${1 - 0.25 * clamp(t, 0, 1)})`;
     shadow.style.opacity = String(0.9 - 0.5 * clamp(t, 0, 1));
     layerA.style.opacity = String(clamp(1 - t * 1.6, 0, 1));
