@@ -2,6 +2,7 @@ import { mountRankIntro } from "./rank-intro.js";
 import { TOPICS, CUSTOM, topicOf, customTopic } from "./topics.js";
 import { createBackend, myGroupIds, rid, JoinError } from "./backend.js";
 import "./tap.js";
+import { buildAnimHTML } from "./build-anim.js";
 
 /* ---------- icons (Lucide, 2px stroke) ---------- */
 const P = {
@@ -446,8 +447,8 @@ function startOnboarding(joinCode = null) {
       const ok = st.mode === "create" ? st.gname.trim() && topicFromPick(st.tp) : st.code.length === 6;
       foot = `<button class="btn btn-primary" data-group ${ok ? "" : "disabled"}>${st.mode === "create" ? "יצירת הקבוצה" : "הצטרפות"}</button>`;
     } else if (s === 5) {
-      body = `<div class="processing"><div class="stack"><i></i><i></i><i></i><i></i><i></i></div><h1 style="font-size:24px">מכינים את הפודיום…</h1><p class="lead" style="margin:0">${esc(S.groups[S.gid]?.name || "")}</p></div>`;
-      setTimeout(() => { if (st.step === 5) { st.step = 6; draw(); } }, 1500);
+      body = `<div class="processing">${buildAnimHTML()}<h1 style="font-size:24px">מכינים את הפודיום…</h1><p class="lead" style="margin:0">${esc(S.groups[S.gid]?.name || "")}</p></div>`;
+      setTimeout(() => { if (st.step === 5) { st.step = 6; draw(); } }, 2100);
     } else if (s === 6) {
       const sc = st.demo || (st.demo = Object.fromEntries(CRIT().map(c => [c.id, 7])));
       body = `<h1>הדירוג הראשון שלכם</h1><p class="lead">לוקח חצי דקה. תמונה ופרטים אפשר להוסיף אחר כך.</p>

@@ -246,3 +246,14 @@ input[type=range]{width:100%;height:32px;accent-color:var(--text);background:non
 .crit-preview{font-size:14px;color:var(--text-muted);line-height:1.5;margin:0 0 var(--s3)}
 .custom-topic{margin-bottom:var(--s3)}
 .crit-in{margin-bottom:var(--s1)}
+
+/* assembly loading animations */
+.build{width:140px;height:140px;color:var(--text);overflow:visible}
+.build .bp{opacity:0;transform-box:fill-box;transform-origin:50% 100%;animation:bpDrop 480ms cubic-bezier(.2,.9,.3,1.3) var(--d) forwards}
+.build .bp.pop{transform-origin:50% 50%;animation-name:bpPop}
+.build .bp.slide{animation-name:bpSlide}
+.build .bp.fan{transform-origin:70px 120px;transform-box:view-box;animation-name:bpFan;animation-duration:560ms}
+@keyframes bpDrop{from{opacity:0;transform:translateY(-48px)}60%{opacity:1}to{opacity:1;transform:none}}
+@keyframes bpPop{from{opacity:0;transform:scale(0)}70%{opacity:1;transform:scale(1.25)}to{opacity:1;transform:none}}
+@keyframes bpSlide{from{opacity:0;transform:translateX(-36px)}to{opacity:1;transform:none}}
+@keyframes bpFan{from{opacity:0;transform:translateY(40px) rotate(0)}to{opacity:1;transform:rotate(var(--r))}}
