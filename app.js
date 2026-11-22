@@ -1,4 +1,5 @@
 import { mountBurgerIntro } from "./burger-intro.js";
+import { createBackend, myGroupIds, rid, JoinError } from "./backend.js";
 import "./bite.js";
 
 /* ---------- icons (Lucide, 2px stroke) ---------- */
@@ -10,23 +11,26 @@ const P = {
   settings:'<path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/>',
   x:'<path d="M18 6 6 18M6 6l12 12"/>',
   back:'<path d="m9 18 6-6-6-6"/>',
+  down:'<path d="m6 9 6 6 6-6"/>',
   trash:'<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
   pencil:'<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
   camera:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
   pin:'<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
   share:'<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/>',
   award:'<circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/>',
-  cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
   check:'<path d="M20 6 9 17l-5-5"/>',
   users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
-  coins:'<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18M7 6h1v4M16.71 13.88l.7.71-2.82 2.82"/>',
+  userPlus:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>',
   copy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
   img:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/>',
+  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+  key:'<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
+  alert:'<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>',
 };
 const ic = (n, cls = "") => `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[n]}</svg>`;
 const BURGER_ART = `<svg viewBox="0 0 120 120" aria-hidden="true"><ellipse cx="60" cy="108" rx="40" ry="5" fill="currentColor" opacity=".08"/><path d="M18 84h84a6 6 0 0 1-6 14H24a6 6 0 0 1-6-14Z" fill="#E3A857"/><rect x="16" y="68" width="88" height="14" rx="7" fill="#6B3A22"/><path d="M16 66h88l-8 6-8-6-8 6-8-6-8 6-8-6-8 6-8-6-8 6-8-6-8 6z" fill="#F1C232"/><rect x="14" y="58" width="92" height="8" rx="4" fill="#6AA84F"/><path d="M18 56c0-20 19-34 42-34s42 14 42 34Z" fill="#E3A857"/><g fill="#FFF3D6"><ellipse cx="44" cy="38" rx="3" ry="1.6"/><ellipse cx="60" cy="32" rx="3" ry="1.6"/><ellipse cx="76" cy="40" rx="3" ry="1.6"/><ellipse cx="52" cy="46" rx="3" ry="1.6"/><ellipse cx="70" cy="48" rx="3" ry="1.6"/></g></svg>`;
 
-/* ---------- data ---------- */
+/* ---------- helpers ---------- */
 const CRITERIA = [
   { id: "taste", label: "טעם", hint: "הביס הראשון, האיזון" },
   { id: "patty", label: "קציצה", hint: "עסיסיות, צלייה, מידת עשייה" },
@@ -39,132 +43,42 @@ const ls = {
   get(k, d) { try { const v = localStorage.getItem("bunrank:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem("bunrank:" + k, JSON.stringify(v)); } catch {} },
 };
-const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-const safe = s => String(s).replace(/[^A-Za-z0-9_-]/g, "_");
-
-/* Store: burgers {id,name,place,date,price,photo,by,createdAt} + ratings {id,bid,uid,scores,notes,at}.
-   Shared mode = artifact db (everyone with the link sees one table). Local mode = IndexedDB on this device. */
-const Store = (() => {
-  let mode = "local", remote = null, user = null, me = "me";
-  let burgers = [], ratings = [], names = {};
-  const listeners = new Set();
-  const emit = () => listeners.forEach(f => f());
-  // local IndexedDB
-  let idb = null;
-  try { idb = new Promise((res, rej) => { const r = indexedDB.open("bunrank", 1); r.onupgradeneeded = () => r.result.createObjectStore("kv"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); idb.catch(() => {}); } catch {}
-  const idbGet = async k => { try { const d = await idb; return await new Promise(res => { const q = d.transaction("kv").objectStore("kv").get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); }); } catch { return undefined; } };
-  const idbPut = async (k, v) => { try { const d = await idb; d.transaction("kv", "readwrite").objectStore("kv").put(v, k); } catch {} };
-  async function loadLocal() {
-    const v = await idbGet("store");
-    if (v) { burgers = v.burgers || []; ratings = v.ratings || []; }
-    else { // migrate v1 (scores inside burger)
-      const old = (await idbGet("burgers")) || [];
-      burgers = old.map(({ scores, notes, eaters, ...b }) => ({ ...b, by: "me" }));
-      ratings = old.map(b => ({ id: b.id + "__me", bid: b.id, uid: "me", scores: b.scores, notes: b.notes || "", at: b.createdAt }));
-    }
-  }
-  const saveLocal = () => idbPut("store", { burgers, ratings });
-  const docsOf = snap => {
-    const arr = Array.isArray(snap) ? snap : snap?.docs || [];
-    return arr.map(d => { const data = typeof d.data === "function" ? d.data() : d.data ?? d; return { ...data, id: d.id ?? data.id }; }).filter(x => x && x.id);
-  };
-  async function resolveNames() {
-    if (!user?.profiles) return;
-    const ids = [...new Set([...ratings.map(r => r.uid), ...burgers.map(b => b.by)])].filter(id => id && !(id in names));
-    if (!ids.length) return;
-    try { const ps = await user.profiles(ids); for (const id of ids) names[id] = ps?.[id]?.name || ""; emit(); } catch {}
-  }
-  return {
-    get mode() { return mode; }, get me() { return me; },
-    on(f) { listeners.add(f); },
-    name(id) { return id === me ? "אני" : names[id] || "חבר"; },
-    async init() {
-      await loadLocal();
-      const getCap = n => Promise.race([window.claude?.use ? window.claude.use(n).catch(() => null) : Promise.resolve(null), new Promise(r => setTimeout(() => r(null), 10000))]);
-      if (!window.claude?.use) await new Promise(r => setTimeout(r, 400)); // let the host inject claude.use
-      const db = window.claude?.use ? await getCap("db") : null;
-      if (!db) { emit(); return; }
-      user = await getCap("user");
-      try { me = (await user?.id?.()) || "me"; } catch {}
-      remote = db; mode = "shared";
-      let gotB = false, gotR = false;
-      const ready = new Promise(res => {
-        const t = setTimeout(res, 10000);
-        const check = () => { if (gotB && gotR) { clearTimeout(t); res(); } };
-        db.collection("burgers").onSnapshot(s => { burgers = docsOf(s); gotB = true; check(); emit(); resolveNames(); }, () => { gotB = true; check(); });
-        db.collection("ratings").onSnapshot(s => { ratings = docsOf(s); gotR = true; check(); emit(); resolveNames(); }, () => { gotR = true; check(); });
-      });
-      await ready;
-      // first time in shared mode: bring this device's local burgers along
-      if (!ls.get("migrated", false)) {
-        const local = await idbGet("store");
-        ls.set("migrated", true);
-        if (local?.burgers?.length && !burgers.length) {
-          for (const b of local.burgers) await this.saveBurger({ ...b, by: me }, local.ratings.find(r => r.bid === b.id) || null).catch(() => {});
-        }
-      }
-      emit();
-    },
-    list() {
-      return burgers.map(b => {
-        const rs = ratings.filter(r => r.bid === b.id && r.scores);
-        const scores = {};
-        for (const c of CRITERIA) { const v = rs.map(r => r.scores[c.id]).filter(x => x != null); scores[c.id] = v.length ? Math.round((v.reduce((a, x) => a + x, 0) / v.length) * 10) / 10 : null; }
-        return { ...b, scores, raters: rs, mine: rs.find(r => r.uid === me) || null };
-      });
-    },
-    async saveBurger(b, myScores, myNotes) {
-      const rec = { id: b.id, name: b.name, place: b.place || "", date: b.date || "", price: b.price || "", photo: b.photo || null, by: b.by || me, createdAt: b.createdAt || Date.now() };
-      const scores = myScores?.scores || myScores;
-      const notes = myScores?.notes ?? myNotes ?? "";
-      const rid = safe(b.id) + "__" + safe(me);
-      const rat = scores ? { id: rid, bid: b.id, uid: me, scores, notes, at: Date.now() } : null;
-      if (mode === "shared") {
-        await remote.collection("burgers").doc(rec.id).set(rec);
-        if (rat) await remote.collection("ratings").doc(rid).set(rat);
-      } else {
-        burgers = [...burgers.filter(x => x.id !== rec.id), rec];
-        if (rat) ratings = [...ratings.filter(r => r.id !== rid), rat];
-        await saveLocal(); emit();
-      }
-      return rec;
-    },
-    async removeBurger(id) {
-      const rs = ratings.filter(r => r.bid === id);
-      if (mode === "shared") {
-        for (const r of rs) await remote.collection("ratings").doc(r.id).delete().catch(() => {});
-        await remote.collection("burgers").doc(id).delete();
-      } else { burgers = burgers.filter(b => b.id !== id); ratings = ratings.filter(r => r.bid !== id); await saveLocal(); emit(); }
-    },
-    canDelete(b) { return mode === "local" || b.by === me || this.isOwner; },
-    async loadOwner() { try { this.isOwner = !!(await user?.isOwner?.()); } catch {} },
-    async resetLocal() { burgers = []; ratings = []; await saveLocal(); emit(); },
-  };
-})();
-
-const S = { burgers: [], sort: "score", q: "", prefs: ls.get("prefs", ["taste", "patty"]), loading: true };
-const weightOf = id => (S.prefs.includes(id) ? 2 : 1);
-function total(b) {
-  let sum = 0, w = 0;
-  for (const c of CRITERIA) { const v = b.scores?.[c.id]; if (v == null) continue; sum += v * weightOf(c.id); w += weightOf(c.id); }
-  return w ? Math.round((sum / w) * 10) / 10 : 0;
-}
 const fmt = n => (Number.isInteger(n) ? n.toFixed(0) : n.toFixed(1));
-const fmtDate = d => { try { return new Date(d).toLocaleDateString("he-IL", { day: "numeric", month: "short", year: "numeric" }); } catch { return d; } };
-const today = () => new Date().toISOString().slice(0, 10);
+const avg = a => (a.length ? Math.round((a.reduce((s, x) => s + x, 0) / a.length) * 10) / 10 : null);
+const scoreOf = scores => avg(CRITERIA.map(c => scores?.[c.id]).filter(v => v != null)) ?? 0;
+const initial = s => (String(s || "?").trim()[0] || "?").toUpperCase();
+const plural = (n, one, many) => (n === 1 ? one : `${n} ${many}`);
+const joinUrl = code => `${location.origin}${location.pathname}?join=${code}`;
+
+/* ---------- state ---------- */
+let be = null;
+const S = { name: ls.get("name", ""), gid: ls.get("gid", null), groups: {}, data: null, sort: "rank", q: "", loading: true };
+let unwatch = null, justAdded = null;
+
+function places() {
+  if (!S.data) return [];
+  const members = Object.fromEntries(S.data.members.map(m => [m.id, m]));
+  return S.data.places.map(p => {
+    const rs = S.data.ratings.filter(r => r.pid === p.id && r.scores);
+    const crit = Object.fromEntries(CRITERIA.map(c => [c.id, avg(rs.map(r => r.scores[c.id]).filter(v => v != null))]));
+    return { ...p, raters: rs.map(r => ({ ...r, who: r.uid === be.uid ? "אני" : members[r.uid]?.name || "חבר שעזב" })), crit, total: avg(rs.map(r => scoreOf(r.scores))) ?? 0, mine: rs.find(r => r.uid === be.uid) || null };
+  });
+}
+function ranked() { return places().filter(p => p.raters.length).sort((a, b) => b.total - a.total || b.raters.length - a.raters.length || a.name.localeCompare(b.name)); }
+function rankMap() { const m = {}; ranked().forEach((p, i) => (m[p.id] = i + 1)); return m; }
 
 /* ---------- theme ---------- */
 function applyTheme() {
   const t = ls.get("theme", "auto");
   const dark = t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.dataset.theme = dark ? "dark" : "light";
-  document.querySelector('meta[name=theme-color]')?.setAttribute("content", dark ? "#14110F" : "#FBF7F1");
+  document.querySelector("meta[name=theme-color]")?.setAttribute("content", dark ? "#14110F" : "#FBF7F1");
 }
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", applyTheme);
 
 /* ---------- toast / dialog / sheet ---------- */
 let toastT;
-function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 2200); }
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 2400); }
 function confirmDialog({ title, text, ok, danger }) {
   return new Promise(res => {
     const el = document.createElement("div"); el.className = "dialog";
@@ -191,152 +105,253 @@ function closeSheet(instant) {
   sh.classList.remove("on"); sc?.classList.remove("on"); setTimeout(() => { sh.remove(); sc?.remove(); }, 300);
 }
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+const sheetHead = t => `<div class="sheet-head"><h2>${t}</h2><button type="button" class="icon-btn" data-close aria-label="סגירה">${ic("x")}</button></div>`;
 
-/* ---------- photo ---------- */
+/* ---------- photo / share ---------- */
 function compress(file) {
   return new Promise((res, rej) => {
     const img = new Image(), url = URL.createObjectURL(file);
-    img.onload = () => { const max = 720, k = Math.min(1, max / Math.max(img.width, img.height)); const c = document.createElement("canvas"); c.width = img.width * k; c.height = img.height * k; c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", .72)); };
+    img.onload = () => { const k = Math.min(1, 640 / Math.max(img.width, img.height)); const c = document.createElement("canvas"); c.width = img.width * k; c.height = img.height * k; c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", .7)); };
     img.onerror = () => { URL.revokeObjectURL(url); rej(); };
     img.src = url;
   });
 }
+async function share(text, url) {
+  try { if (navigator.share) { await navigator.share({ title: "BunRank", text, url }); return; } } catch (e) { if (e?.name === "AbortError") return; }
+  try { await navigator.clipboard.writeText(url ? `${text}\n${url}` : text); toast("הועתק — אפשר להדביק בוואטסאפ"); } catch { toast("לא הצלחנו לשתף. העתיקו את הקוד ידנית"); }
+}
+const inviteText = g => `בואו לדרג איתי מקומות המבורגר בקבוצה "${g.name}" 🍔\nקוד הצטרפות: ${g.code}`;
 
-/* ---------- share ---------- */
-async function share(text) {
-  try { if (navigator.share) { await navigator.share({ title: "BunRank", text }); return; } } catch (e) { if (e?.name === "AbortError") return; }
-  try { await navigator.clipboard.writeText(text); toast("הטקסט הועתק — אפשר להדביק בוואטסאפ"); } catch { toast("לא הצלחנו לשתף מכאן. נסו מהאפליקציה המותקנת"); }
+/* ---------- groups ---------- */
+async function loadGroups() {
+  const ids = myGroupIds.get();
+  const infos = await Promise.all(ids.map(id => be.groupInfo(id).catch(() => null)));
+  S.groups = {}; ids.forEach((id, i) => { if (infos[i]) S.groups[id] = infos[i]; });
+  if (!S.groups[S.gid]) S.gid = Object.keys(S.groups)[0] || null;
+  ls.set("gid", S.gid);
 }
-function shareText(list) {
-  const top = [...list].sort((a, b) => total(b) - total(a)).slice(0, 5);
-  return "טבלת ההמבורגרים שלנו 🍔\n" + top.map((b, i) => `${i + 1}. ${b.name}${b.place ? " · " + b.place : ""} — ${fmt(total(b))}/10`).join("\n");
+function selectGroup(gid) {
+  S.gid = gid; ls.set("gid", gid); S.data = null; S.loading = !!gid;
+  unwatch?.(); unwatch = null;
+  if (gid) unwatch = be.watchGroup(gid, d => {
+    S.loading = false;
+    if (!d) { toast("לא הצלחנו לטעון את הקבוצה. בדקו את החיבור"); render(); return; }
+    S.data = d; if (d.group) S.groups[gid] = d.group;
+    render();
+  });
+  render();
 }
+async function createGroup(name) {
+  const id = await be.createGroup(name, S.name);
+  S.groups[id] = await be.groupInfo(id); selectGroup(id); return id;
+}
+async function joinGroup(code) {
+  const id = await be.joinByCode(code.trim().toUpperCase(), S.name);
+  S.groups[id] = await be.groupInfo(id); selectGroup(id); return id;
+}
+const joinErrorText = e => (e instanceof JoinError ? "לא מצאנו קבוצה עם הקוד הזה. בדקו אותו ונסו שוב" : "לא הצלחנו להצטרף. בדקו את החיבור ונסו שוב");
 
 /* ---------- main screen ---------- */
 const app = document.getElementById("app");
-function sorted() {
-  const q = S.q.trim().toLowerCase();
-  let l = S.burgers.filter(b => !q || (b.name + " " + (b.place || "")).toLowerCase().includes(q));
-  const by = { score: (a, b) => total(b) - total(a), recent: (a, b) => (b.date || "").localeCompare(a.date || "") || b.createdAt - a.createdAt, value: (a, b) => (b.scores.value ?? 0) - (a.scores.value ?? 0) || total(b) - total(a) }[S.sort];
-  return l.sort(by);
+const MEDAL = ["gold", "silver", "bronze"];
+function podiumHTML(top) {
+  const slot = (p, i) => p ? `<button class="pod pod-${i + 1}${justAdded === p.id ? " new" : ""}" data-open="${p.id}">
+      <span class="pod-avatar ${MEDAL[i]}">${p.photo ? `<img src="${p.photo}" alt="">` : `<b>${esc(initial(p.name))}</b>`}<i>${i + 1}</i></span>
+      <span class="pod-name">${esc(p.name)}</span>
+      <span class="pod-score">${fmt(p.total)}</span>
+      <span class="pod-step ${MEDAL[i]}"><span>${["מקום ראשון", "מקום שני", "מקום שלישי"][i]}</span></span></button>`
+    : `<div class="pod pod-${i + 1} pod-empty"><span class="pod-avatar"><b>?</b><i>${i + 1}</i></span><span class="pod-name">פנוי</span><span class="pod-score">&nbsp;</span><span class="pod-step"><span>${["מקום ראשון", "מקום שני", "מקום שלישי"][i]}</span></span></div>`;
+  return `<section class="podium-wrap" aria-label="פודיום">${slot(top[1], 1)}${slot(top[0], 0)}${slot(top[2], 2)}</section>`;
 }
-function rankMap() { const m = {}; [...S.burgers].sort((a, b) => total(b) - total(a)).forEach((b, i) => (m[b.id] = i + 1)); return m; }
-let justAdded = null;
-function refresh() { S.burgers = Store.list(); render(); }
+function rowHTML(p, rank) {
+  return `<li><button class="card${justAdded === p.id ? " new" : ""}" data-open="${p.id}">
+    <span class="rank">${rank ?? "–"}</span>
+    <span class="thumb">${p.photo ? `<img src="${p.photo}" alt="" loading="lazy">` : ic("img")}</span>
+    <span class="card-body"><span class="card-title">${esc(p.name)}</span><span class="card-sub">${p.city ? ic("pin") + esc(p.city) + " · " : ""}${p.mine ? plural(p.raters.length, "דירוג אחד", "דירוגים") : `<b class="need">חסר הדירוג שלך</b>`}</span></span>
+    <span class="score"><b>${p.raters.length ? fmt(p.total) : "–"}</b><small>/10</small></span></button></li>`;
+}
 function render() {
-  const ranks = rankMap(), list = sorted();
   const isDark = document.documentElement.dataset.theme === "dark";
-  let body;
-  if (S.loading) {
-    body = `<div class="empty"><p>טוענים את הטבלה…</p></div>`;
-  } else if (!S.burgers.length) {
-    body = `<div class="empty">${BURGER_ART}<h2>עוד לא דירגתם אף המבורגר</h2><p>אכלתם המבורגר לאחרונה? דרגו אותו ותתחילו את הטבלה${Store.mode === "shared" ? " — כל מי שיש לו את הקישור יראה אותה וידרג איתכם" : ""}.</p></div>`;
-  } else if (!list.length) {
-    body = `<div class="empty"><h2>לא מצאנו את "${esc(S.q)}"</h2><p>נסו שם אחר של מקום או של המבורגר.</p><button class="btn" data-act="clear-q" style="width:auto">ניקוי החיפוש</button></div>`;
-  } else {
-    const showHero = S.sort === "score" && !S.q && list.length > 0;
-    const first = showHero ? list[0] : null, rest = showHero ? list.slice(1) : list;
-    body = `${first ? `<div class="podium"><button class="hero${justAdded === first.id ? " card new" : ""}" data-open="${first.id}" style="padding:0">
-        <div class="hero-img">${first.photo ? `<img src="${first.photo}" alt="${esc(first.name)}">` : ic("img")}</div>
-        <div class="hero-body"><div class="card-body"><span class="badge">${ic("award")} מקום ראשון</span><span class="card-title">${esc(first.name)}</span><span class="card-sub">${first.place ? ic("pin") + esc(first.place) : fmtDate(first.date)}</span></div>
-        <div class="score"><b>${fmt(total(first))}</b><small>${first.raters.length > 1 ? first.raters.length + " דירוגים" : "מתוך 10"}</small></div></div></button></div>` : ""}
-      <ul class="list">${rest.map(b => `<li><button class="card${justAdded === b.id ? " new" : ""}" data-open="${b.id}">
-        <span class="rank${ranks[b.id] === 1 ? " r1" : ""}">${ranks[b.id]}</span>
-        <span class="thumb">${b.photo ? `<img src="${b.photo}" alt="" loading="lazy">` : ic("img")}</span>
-        <span class="card-body"><span class="card-title">${esc(b.name)}</span><span class="card-sub">${b.place ? ic("pin") + esc(b.place) : fmtDate(b.date)}</span></span>
-        <span class="score"><b>${fmt(total(b))}</b><small>${b.raters.length > 1 ? b.raters.length + " דירוגים" : "/10"}</small></span></button></li>`).join("")}</ul>`;
+  const g = S.groups[S.gid];
+  const head = `<header class="top"><div class="brand"><img src="icons/icon-192.png" alt="">BunRank</div>
+    <div class="top-actions"><button class="icon-btn" data-act="theme" aria-label="${isDark ? "מצב בהיר" : "מצב כהה"}">${ic(isDark ? "sun" : "moon")}</button><button class="icon-btn" data-act="settings" aria-label="הגדרות">${ic("settings")}</button></div></header>`;
+  if (!g) {
+    app.innerHTML = `${head}<div class="empty">${BURGER_ART}<h2>עוד אין לכם קבוצה</h2><p>צרו קבוצה והזמינו חברים, או הצטרפו לקבוצה של חבר עם הקוד שהוא שלח.</p>
+      <div class="actions"><button class="btn btn-primary" data-act="create">${ic("plus")}יצירת קבוצה</button><button class="btn" data-act="join">${ic("key")}הצטרפות עם קוד</button></div></div>`;
+    return;
   }
-  app.innerHTML = `
-    <header class="top"><div class="brand"><img src="icons/icon-192.png" alt="">BunRank</div>
-      <div class="top-actions"><button class="icon-btn" data-act="theme" aria-label="${isDark ? "מצב בהיר" : "מצב כהה"}">${ic(isDark ? "sun" : "moon")}</button><button class="icon-btn" data-act="settings" aria-label="הגדרות">${ic("settings")}</button></div></header>
-    <h1 class="title">ההמבורגרים שלנו</h1>
-    <p class="lead">${S.burgers.length ? `${S.burgers.length === 1 ? "המבורגר אחד" : S.burgers.length + " המבורגרים"} · ${(k => k === 1 ? "מדרג אחד" : k + " מדרגים")(new Set(S.burgers.flatMap(b => b.raters.map(r => r.uid))).size)}${Store.mode === "shared" ? " · טבלה משותפת" : ""}` : "כל ההמבורגרים שאכלתם, מדורגים מהטוב ביותר"}</p>
-    ${S.burgers.length ? `<label class="search">${ic("search")}<input type="search" placeholder="חיפוש מקום או המבורגר" value="${esc(S.q)}" aria-label="חיפוש"></label>
-    <div class="chips" role="group" aria-label="מיון">${[["score", "הכי טובים"], ["recent", "אחרונים"], ["value", "הכי שווים"]].map(([k, l]) => `<button class="chip" data-sort="${k}" aria-pressed="${S.sort === k}">${l}</button>`).join("")}</div>` : ""}
+  const all = places(), rk = rankMap(), top = ranked().slice(0, 3), topIds = new Set(top.map(p => p.id));
+  const q = S.q.trim().toLowerCase();
+  let list = all.filter(p => !q || (p.name + " " + (p.city || "")).toLowerCase().includes(q));
+  if (S.sort === "rank") list = list.filter(p => !topIds.has(p.id) || q).sort((a, b) => (rk[a.id] ?? 1e9) - (rk[b.id] ?? 1e9));
+  if (S.sort === "mine") list = list.filter(p => !p.mine);
+  if (S.sort === "recent") list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const members = S.data?.members || [];
+  let body;
+  if (S.loading) body = `<div class="empty"><p>טוענים את הטבלה…</p></div>`;
+  else if (!all.length) body = `<div class="empty">${BURGER_ART}<h2>הטבלה עוד ריקה</h2><p>דרגו את מקום ההמבורגר הראשון. כל חבר בקבוצה ידרג אותו גם, והממוצע יעלה לפודיום.</p></div>`;
+  else body = `${S.sort === "rank" && !q ? podiumHTML(top) : ""}
+    <label class="search">${ic("search")}<input type="search" placeholder="חיפוש מקום" value="${esc(S.q)}" aria-label="חיפוש"></label>
+    <div class="chips" role="group" aria-label="תצוגה">${[["rank", "דירוג"], ["mine", "חסר הדירוג שלי"], ["recent", "אחרונים"]].map(([k, l]) => `<button class="chip" data-sort="${k}" aria-pressed="${S.sort === k}">${l}</button>`).join("")}</div>
+    ${list.length ? `<ul class="list">${list.map(p => rowHTML(p, rk[p.id])).join("")}</ul>` : `<div class="empty" style="padding-top:var(--s3)"><p>${S.sort === "mine" ? "דירגתם את כל המקומות בקבוצה. יפה!" : q ? `לא מצאנו את "${esc(S.q)}"` : "כל המקומות כבר על הפודיום"}</p></div>`}`;
+  app.innerHTML = `${head}
+    <button class="group-pick" data-act="groups"><span class="gp-ic">${ic("users")}</span><span class="gp-body"><span class="gp-label">הקבוצה שלכם</span><span class="gp-name">${esc(g.name)}</span></span>${ic("down")}</button>
+    <h1 class="title">טבלת הדירוג</h1>
+    <p class="lead">${plural(all.length, "מקום אחד", "מקומות")} · ${plural(members.length, "חבר אחד", "חברים")}${be.kind === "local" ? " · שמור רק במכשיר הזה" : ""}</p>
     ${body}
-    <div class="dock"><div class="inner"><button class="btn btn-primary" data-act="add">${ic("plus")}דרגו המבורגר</button>${S.burgers.length ? `<button class="icon-btn" style="width:56px;height:56px;border-radius:var(--radius);flex:none" data-act="share" aria-label="שיתוף הטבלה">${ic("share")}</button>` : ""}</div></div>`;
+    <div class="dock"><div class="inner"><button class="btn btn-primary" data-act="add">${ic("plus")}דרגו מקום</button><button class="icon-btn dock-ic" data-act="invite" aria-label="הזמנת חברים">${ic("userPlus")}</button></div></div>`;
   justAdded = null;
   const inp = app.querySelector(".search input");
-  if (inp) inp.oninput = e => { S.q = e.target.value; const pos = e.target.selectionStart; render(); const n = app.querySelector(".search input"); n.focus(); n.setSelectionRange(pos, pos); };
+  if (inp) inp.oninput = e => { S.q = e.target.value; const pos = e.target.selectionStart; render(); const n = app.querySelector(".search input"); n?.focus(); n?.setSelectionRange(pos, pos); };
 }
 app.addEventListener("click", e => {
   const o = e.target.closest("[data-open]"); if (o) return openDetail(o.dataset.open);
   const s = e.target.closest("[data-sort]"); if (s) { S.sort = s.dataset.sort; return render(); }
   const a = e.target.closest("[data-act]")?.dataset.act;
-  if (a === "add") openEditor();
+  if (a === "add") openRate();
+  if (a === "invite") openInvite();
+  if (a === "groups") openGroups();
+  if (a === "create") needName(openCreate);
+  if (a === "join") needName(() => openJoin());
   if (a === "theme") { ls.set("theme", document.documentElement.dataset.theme === "dark" ? "light" : "dark"); applyTheme(); render(); }
   if (a === "settings") openSettings();
-  if (a === "share") share(shareText(S.burgers));
-  if (a === "clear-q") { S.q = ""; render(); }
 });
 
-/* ---------- editor ---------- */
-function sliderHTML(c, v) {
-  return `<div class="slider"><div class="slider-top"><span>${c.label}${weightOf(c.id) > 1 ? `<em>חשוב לכם</em>` : ""}</span><b data-out="${c.id}">${v}</b></div>
-    <input type="range" min="1" max="10" step="1" value="${v}" name="${c.id}" aria-label="${c.label}"></div>`;
+/* ---------- name ---------- */
+function needName(next) { if (S.name) return next(); openName(next); }
+function openName(next) {
+  openSheet(`${sheetHead("איך קוראים לך?")}<p class="lead" style="margin-top:-16px">ככה החברים יראו מי דירג מה.</p>
+    <form id="nf"><label class="field"><span>השם שלך</span><input class="input" name="n" maxlength="24" value="${esc(S.name)}" autocomplete="given-name" required></label><button class="btn btn-primary" type="submit">שמירה</button></form>`, sh => {
+    const f = sh.querySelector("#nf"); setTimeout(() => f.elements.n.focus(), 300);
+    f.onsubmit = async e => {
+      e.preventDefault(); const n = f.elements.n.value.trim(); if (!n) return f.elements.n.focus();
+      S.name = n; ls.set("name", n);
+      for (const id of Object.keys(S.groups)) be.setMyName(id, n).catch(() => {});
+      closeSheet(); render(); next && setTimeout(next, 320);
+    };
+  });
 }
-function openEditor(id) {
-  const b = id ? S.burgers.find(x => x.id === id) : null;
-  const mine = b?.mine;
-  const d = b || { name: "", place: "", date: today(), price: "", photo: null };
+
+/* ---------- create / join / invite / switch ---------- */
+function openCreate() {
+  openSheet(`${sheetHead("קבוצה חדשה")}<form id="cf"><label class="field"><span>שם הקבוצה</span><input class="input" name="n" maxlength="32" placeholder="למשל: החבר׳ה מהצבא" required></label><button class="btn btn-primary" type="submit">יצירת הקבוצה</button></form>`, sh => {
+    const f = sh.querySelector("#cf"); setTimeout(() => f.elements.n.focus(), 300);
+    f.onsubmit = async e => {
+      e.preventDefault(); const n = f.elements.n.value.trim(); if (!n) return f.elements.n.focus();
+      const b = f.querySelector("[type=submit]"); b.disabled = true;
+      try { await createGroup(n); closeSheet(); setTimeout(() => openInvite(true), 320); }
+      catch { b.disabled = false; toast("לא הצלחנו ליצור את הקבוצה. בדקו את החיבור ונסו שוב"); }
+    };
+  });
+}
+function openJoin(code = "") {
+  openSheet(`${sheetHead("הצטרפות לקבוצה")}<form id="jf"><label class="field"><span>קוד הצטרפות</span><input class="input code-input" name="c" maxlength="6" value="${esc(code)}" placeholder="ABC123" autocapitalize="characters" autocomplete="off" dir="ltr" required></label><button class="btn btn-primary" type="submit">הצטרפות</button></form>`, sh => {
+    const f = sh.querySelector("#jf"); setTimeout(() => f.elements.c.focus(), 300);
+    f.elements.c.oninput = e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); };
+    f.onsubmit = async e => {
+      e.preventDefault(); const c = f.elements.c.value.trim(); if (c.length < 6) { toast("הקוד הוא 6 תווים"); return; }
+      const b = f.querySelector("[type=submit]"); b.disabled = true;
+      try { await joinGroup(c); closeSheet(); toast(`הצטרפת ל"${S.groups[S.gid].name}"`); }
+      catch (err) { b.disabled = false; toast(joinErrorText(err)); }
+    };
+  });
+}
+function openInvite(fresh) {
+  const g = S.groups[S.gid]; if (!g) return;
+  openSheet(`${sheetHead(fresh ? "הקבוצה מוכנה!" : "הזמנת חברים")}<p class="lead" style="margin-top:-16px">שלחו לחברים את הקישור או את הקוד. כל מי שמצטרף מדרג, והממוצע של כולם קובע את הפודיום.</p>
+    <div class="code-box" dir="ltr" aria-label="קוד הצטרפות">${esc(g.code)}</div>
+    ${be.kind === "local" ? `<p class="warn">${ic("alert")}<span>הקבוצה שמורה כרגע רק במכשיר הזה. חברים יוכלו להצטרף אחרי שנחבר את מסד הנתונים.</span></p>` : ""}
+    <div class="actions"><button class="btn btn-primary" data-i="share">${ic("share")}שליחת הזמנה</button><button class="btn" data-i="copy">${ic("copy")}העתקת הקוד</button></div>`, sh => {
+    sh.addEventListener("click", async e => {
+      const a = e.target.closest("[data-i]")?.dataset.i;
+      if (a === "share") share(inviteText(g), joinUrl(g.code));
+      if (a === "copy") { try { await navigator.clipboard.writeText(g.code); toast("הקוד הועתק"); } catch { toast("לא הצלחנו להעתיק. הקוד: " + g.code); } }
+    });
+  });
+}
+function openGroups() {
+  const ids = Object.keys(S.groups);
+  openSheet(`${sheetHead("הקבוצות שלי")}<div class="group">${ids.map(id => `<button class="group-row" data-g="${id}"><span style="display:flex;align-items:center;gap:8px">${ic("users")}${esc(S.groups[id].name)}</span>${id === S.gid ? ic("check") : ""}</button>`).join("")}</div>
+    <div class="actions"><button class="btn" data-x="create">${ic("plus")}יצירת קבוצה חדשה</button><button class="btn" data-x="join">${ic("key")}הצטרפות עם קוד</button></div>`, sh => {
+    sh.addEventListener("click", e => {
+      const g = e.target.closest("[data-g]")?.dataset.g; if (g) { closeSheet(); selectGroup(g); return; }
+      const x = e.target.closest("[data-x]")?.dataset.x;
+      if (x === "create") needName(openCreate);
+      if (x === "join") needName(() => openJoin());
+    });
+  });
+}
+
+/* ---------- rate a place ---------- */
+function sliderHTML(c, v) {
+  return `<div class="slider"><div class="slider-top"><span>${c.label}</span><b data-out="${c.id}">${v}</b></div><input type="range" min="1" max="10" step="1" value="${v}" name="${c.id}" aria-label="${c.label}"></div>`;
+}
+function openRate(pid) {
+  const all = places();
+  const p = pid ? all.find(x => x.id === pid) : null;
+  const mine = p?.mine;
   const sc = mine?.scores || Object.fromEntries(CRITERIA.map(c => [c.id, 7]));
-  const others = b ? b.raters.filter(r => r.uid !== Store.me).length : 0;
-  let photo = d.photo;
-  openSheet(`<form id="ed" novalidate>
-    <div class="sheet-head"><h2>${!b ? "דירוג חדש" : mine ? "הדירוג שלי" : "דרגו גם אתם"}</h2><button type="button" class="icon-btn" data-close aria-label="סגירה">${ic("x")}</button></div>
-    ${b && others ? `<p class="lead" style="margin-top:-16px">${others === 1 ? "חבר אחד כבר דירג" : others + " חברים כבר דירגו"}. הציון שלכם ייכנס לממוצע.</p>` : ""}
-    <label class="field"><span>תמונה</span><div class="photo-pick" id="pp">${photo ? `<img src="${photo}" alt="">` : `${ic("camera")}<span>צלמו או בחרו תמונה</span>`}<input type="file" accept="image/*" aria-label="הוספת תמונה"></div></label>
-    <label class="field"><span>שם ההמבורגר</span><input class="input" name="name" required placeholder="למשל: דאבל צ׳יזבורגר" value="${esc(d.name)}" autocomplete="off"></label>
-    <label class="field"><span>מקום</span><input class="input" name="place" placeholder="שם המסעדה" value="${esc(d.place)}" list="places" autocomplete="off"></label>
-    <datalist id="places">${[...new Set(S.burgers.map(x => x.place).filter(Boolean))].map(p => `<option value="${esc(p)}">`).join("")}</datalist>
-    <div class="row2"><label class="field"><span>תאריך</span><input class="input" type="date" name="date" value="${esc(d.date)}"></label>
-    <label class="field"><span>מחיר (₪)</span><input class="input" name="price" inputmode="decimal" placeholder="68" value="${esc(d.price)}"></label></div>
-    <div class="total-live"><span style="font-weight:600">הציון שלי</span><b id="tl">${fmt(total({ scores: sc }))}</b></div>
+  let photo = p?.photo || null;
+  const others = p ? p.raters.filter(r => r.uid !== be.uid).length : 0;
+  openSheet(`<form id="ed" novalidate>${sheetHead(!p ? "דירוג מקום" : mine ? "הדירוג שלי" : "דרגו גם אתם")}
+    ${p && others ? `<p class="lead" style="margin-top:-16px">${plural(others, "חבר אחד כבר דירג", "חברים כבר דירגו")}. הציון שלך ייכנס לממוצע.</p>` : ""}
+    <label class="field"><span>שם המקום</span><input class="input" name="name" required placeholder="למשל: מוזס" value="${esc(p?.name || "")}" list="places" autocomplete="off" ${p ? "readonly" : ""}></label>
+    <datalist id="places">${all.map(x => `<option value="${esc(x.name)}">`).join("")}</datalist>
+    <p class="hint-line" id="exists" hidden></p>
+    <label class="field"><span>עיר (לא חובה)</span><input class="input" name="city" placeholder="למשל: רחובות" value="${esc(p?.city || "")}" autocomplete="off"></label>
+    <label class="field"><span>תמונה (לא חובה)</span><div class="photo-pick" id="pp">${photo ? `<img src="${photo}" alt="">` : `${ic("camera")}<span>צלמו או בחרו תמונה</span>`}<input type="file" accept="image/*" aria-label="הוספת תמונה"></div></label>
+    <label class="field"><span>מה אכלת? (לא חובה)</span><input class="input" name="dish" placeholder="למשל: דאבל צ׳יזבורגר" value="${esc(mine?.dish || "")}" autocomplete="off"></label>
+    <div class="total-live"><span style="font-weight:600">הציון שלי</span><b id="tl">${fmt(scoreOf(sc))}</b></div>
     ${CRITERIA.map(c => sliderHTML(c, sc[c.id] ?? 7)).join("")}
     <label class="field"><span>הערות</span><textarea class="input" name="notes" placeholder="מה היה מיוחד? מה הייתם משנים?">${esc(mine?.notes || "")}</textarea></label>
-    <button class="btn btn-primary" type="submit">${!b ? "הוספה לטבלה" : mine ? "שמירת השינויים" : "שמירת הדירוג שלי"}</button>
-  </form>`, sh => {
+    <button class="btn btn-primary" type="submit">${!p ? "הוספה לטבלה" : mine ? "שמירת השינויים" : "שמירת הדירוג שלי"}</button></form>`, sh => {
     const f = sh.querySelector("#ed");
     const readScores = () => Object.fromEntries(CRITERIA.map(c => [c.id, +f.elements[c.id].value]));
-    f.addEventListener("input", e => { if (e.target.type === "range") { sh.querySelector(`[data-out=${e.target.name}]`).textContent = e.target.value; sh.querySelector("#tl").textContent = fmt(total({ scores: readScores() })); } });
+    const findExisting = () => { const n = f.elements.name.value.trim().toLowerCase(); return n ? all.find(x => x.name.trim().toLowerCase() === n) : null; };
+    f.addEventListener("input", e => {
+      if (e.target.type === "range") { sh.querySelector(`[data-out=${e.target.name}]`).textContent = e.target.value; sh.querySelector("#tl").textContent = fmt(scoreOf(readScores())); }
+      if (e.target.name === "name" && !p) { const ex = findExisting(), h = sh.querySelector("#exists"); h.hidden = !ex; if (ex) h.textContent = `"${ex.name}" כבר בטבלה — הדירוג שלך ייכנס לממוצע שלו.`; }
+    });
     f.querySelector("input[type=file]").addEventListener("change", async e => {
       const file = e.target.files[0]; if (!file) return;
       try { photo = await compress(file); const pp = sh.querySelector("#pp"); pp.querySelector("img")?.remove(); pp.querySelectorAll(":scope>svg,:scope>span").forEach(n => n.remove()); pp.insertAdjacentHTML("afterbegin", `<img src="${photo}" alt="">`); }
       catch { toast("לא הצלחנו לקרוא את התמונה. נסו תמונה אחרת"); }
     });
-    f.addEventListener("submit", async e => {
+    f.onsubmit = async e => {
       e.preventDefault();
       const name = f.elements.name.value.trim();
-      if (!name) { f.elements.name.focus(); f.elements.name.style.borderColor = "var(--danger)"; toast("חסר שם להמבורגר"); return; }
+      if (!name) { f.elements.name.focus(); f.elements.name.style.borderColor = "var(--danger)"; toast("חסר שם למקום"); return; }
       const btn = f.querySelector("[type=submit]"); btn.disabled = true;
       try {
-        const rec = await Store.saveBurger({ ...(b || { id: uid(), createdAt: Date.now() }), name, place: f.elements.place.value.trim(), date: f.elements.date.value || today(), price: f.elements.price.value.trim(), photo }, readScores(), f.elements.notes.value.trim());
-        justAdded = rec.id; closeSheet(); refresh();
-        toast(b ? (mine ? "השינויים נשמרו" : "הדירוג שלכם נוסף") : `נכנס לטבלה במקום ${rankMap()[rec.id] || 1}`);
-        requestAnimationFrame(() => app.querySelector(`[data-open="${rec.id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+        const target = p || findExisting();
+        const place = target
+          ? { id: target.id, name: target.name, city: f.elements.city.value.trim() || target.city || "", photo: photo || target.photo || null, addedBy: target.addedBy, createdAt: target.createdAt }
+          : { id: rid(), name, city: f.elements.city.value.trim(), photo, addedBy: be.uid, createdAt: Date.now() };
+        await be.savePlace(S.gid, place);
+        await be.saveRating(S.gid, { id: `${place.id}__${be.uid}`, pid: place.id, uid: be.uid, scores: readScores(), dish: f.elements.dish.value.trim(), notes: f.elements.notes.value.trim(), at: Date.now() });
+        justAdded = place.id; closeSheet();
+        setTimeout(() => { const r = rankMap()[place.id]; toast(mine ? "השינויים נשמרו" : r <= 3 ? `עלה לפודיום — מקום ${r}!` : `נכנס לטבלה במקום ${r}`); app.querySelector(`[data-open="${place.id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }); }, 150);
       } catch { btn.disabled = false; toast("הדירוג לא נשמר. בדקו את החיבור ונסו שוב"); }
-    });
+    };
   });
 }
 
-/* ---------- detail ---------- */
-function openDetail(id) {
-  const b = S.burgers.find(x => x.id === id); if (!b) return;
-  const r = rankMap()[id];
-  const n = b.raters.length;
-  openSheet(`<div class="sheet-head"><h2>${esc(b.name)}</h2><button class="icon-btn" data-close aria-label="סגירה">${ic("x")}</button></div>
-    <div class="d-img">${b.photo ? `<img src="${b.photo}" alt="${esc(b.name)}">` : ic("img")}</div>
-    <div class="total-live"><span><span style="display:block;font-weight:600">${n > 1 ? `ממוצע של ${n} דירוגים` : "ציון כולל"}</span><span style="color:var(--text-muted);font-size:14px">מקום ${r} מתוך ${S.burgers.length}</span></span><b>${fmt(total(b))}</b></div>
-    <div class="meta">${b.place ? `<span>${ic("pin")}${esc(b.place)}</span>` : ""}${b.date ? `<span>${ic("cal")}${fmtDate(b.date)}</span>` : ""}${b.price ? `<span>${ic("coins")}₪${esc(b.price)}</span>` : ""}</div>
-    <div class="bars">${CRITERIA.map(c => `<div class="bar-row"><span>${c.label}</span><span class="bar"><i style="width:${(b.scores[c.id] ?? 0) * 10}%"></i></span><b>${b.scores[c.id] != null ? fmt(b.scores[c.id]) : "–"}</b></div>`).join("")}</div>
-    ${n ? `<p class="group-label">מי דירג</p><div class="group">${b.raters.map(x => `<div class="group-row" style="flex-wrap:wrap;padding-block:12px"><span style="display:flex;align-items:center;gap:8px">${ic("users")}<span>${esc(Store.name(x.uid))}</span></span><b>${fmt(total(x))}</b>${x.notes ? `<span style="flex-basis:100%;color:var(--text-muted);font-size:14px;line-height:1.5;white-space:pre-wrap">${esc(x.notes)}</span>` : ""}</div>`).join("")}</div>` : ""}
-    <div class="actions"><button class="btn ${b.mine ? "" : "btn-primary"}" data-d="edit">${ic(b.mine ? "pencil" : "plus")}${b.mine ? "עריכת הדירוג שלי" : "דרגו גם אתם"}</button><button class="btn" data-d="share">${ic("share")}שיתוף</button>${Store.canDelete(b) ? `<button class="btn btn-ghost btn-danger" data-d="del">${ic("trash")}מחיקה</button>` : ""}</div>`, sh => {
+/* ---------- place detail ---------- */
+function openDetail(pid) {
+  const p = places().find(x => x.id === pid); if (!p) return;
+  const r = rankMap()[pid], n = p.raters.length;
+  openSheet(`${sheetHead(esc(p.name))}
+    ${p.photo ? `<div class="d-img"><img src="${p.photo}" alt="${esc(p.name)}"></div>` : ""}
+    <div class="total-live"><span><span style="display:block;font-weight:600">${n > 1 ? `ממוצע של ${n} דירוגים` : n ? "דירוג אחד" : "עוד לא דורג"}</span><span style="color:var(--text-muted);font-size:14px">${r ? `מקום ${r} מתוך ${ranked().length}` : ""}${p.city ? ` · ${esc(p.city)}` : ""}</span></span><b>${n ? fmt(p.total) : "–"}</b></div>
+    <div class="bars">${CRITERIA.map(c => `<div class="bar-row"><span>${c.label}</span><span class="bar"><i style="width:${(p.crit[c.id] ?? 0) * 10}%"></i></span><b>${p.crit[c.id] != null ? fmt(p.crit[c.id]) : "–"}</b></div>`).join("")}</div>
+    ${n ? `<p class="group-label">מי דירג</p><div class="group">${p.raters.sort((a, b) => scoreOf(b.scores) - scoreOf(a.scores)).map(x => `<div class="group-row rater"><span class="r-who"><span class="avatar">${esc(initial(x.who))}</span><span><b>${esc(x.who)}</b>${x.dish ? `<small>${esc(x.dish)}</small>` : ""}</span></span><b>${fmt(scoreOf(x.scores))}</b>${x.notes ? `<span class="r-note">${esc(x.notes)}</span>` : ""}</div>`).join("")}</div>` : ""}
+    <div class="actions"><button class="btn ${p.mine ? "" : "btn-primary"}" data-d="rate">${ic(p.mine ? "pencil" : "plus")}${p.mine ? "עריכת הדירוג שלי" : "דרגו גם אתם"}</button><button class="btn" data-d="share">${ic("share")}שיתוף</button>${p.addedBy === be.uid ? `<button class="btn btn-ghost btn-danger" data-d="del">${ic("trash")}מחיקת המקום</button>` : ""}</div>`, sh => {
     sh.addEventListener("click", async e => {
       const a = e.target.closest("[data-d]")?.dataset.d;
-      if (a === "edit") openEditor(id);
-      if (a === "share") share(`${b.name}${b.place ? " ב" + b.place : ""} — ${fmt(total(b))}/10 🍔\nמקום ${r} בטבלה שלנו`);
-      if (a === "del" && await confirmDialog({ title: "למחוק את ההמבורגר?", text: `"${b.name}" וכל הדירוגים שלו יימחקו מהטבלה${Store.mode === "shared" ? " אצל כולם" : ""}. אי אפשר לבטל.`, ok: "מחיקה", danger: true })) {
-        try { await Store.removeBurger(id); closeSheet(); refresh(); toast("נמחק מהטבלה"); } catch { toast("לא הצלחנו למחוק. נסו שוב"); }
+      if (a === "rate") openRate(pid);
+      if (a === "share") share(`${p.name} — ${fmt(p.total)}/10 🍔 ${r ? `(מקום ${r} בקבוצה "${S.groups[S.gid].name}")` : ""}`);
+      if (a === "del" && await confirmDialog({ title: "למחוק את המקום?", text: `"${p.name}" יימחק מהטבלה של כל הקבוצה. אי אפשר לבטל.`, ok: "מחיקה", danger: true })) {
+        try { await be.deletePlace(S.gid, pid); closeSheet(); toast("המקום נמחק"); } catch { toast("לא הצלחנו למחוק. נסו שוב"); }
       }
     });
   });
@@ -344,57 +359,44 @@ function openDetail(id) {
 
 /* ---------- settings ---------- */
 function openSettings() {
-  const t = ls.get("theme", "auto");
-  openSheet(`<div class="sheet-head"><h2>הגדרות</h2><button class="icon-btn" data-close aria-label="סגירה">${ic("x")}</button></div>
+  const t = ls.get("theme", "auto"), g = S.groups[S.gid];
+  openSheet(`${sheetHead("הגדרות")}
+    <p class="group-label">אני</p>
+    <div class="group"><button class="group-row" data-s="name"><span>השם שלי</span><span style="color:var(--text-muted)">${esc(S.name || "לא הוגדר")}</span></button></div>
     <p class="group-label">מראה</p>
     <div class="group"><div class="group-row"><span>צבעים</span><div class="seg">${[["auto", "אוטומטי"], ["light", "בהיר"], ["dark", "כהה"]].map(([k, l]) => `<button data-theme-set="${k}" aria-pressed="${t === k}">${l}</button>`).join("")}</div></div></div>
-    <p class="group-label">מה חשוב לכם (מקבל משקל כפול בציון)</p>
-    <div class="grid2" style="margin-bottom:var(--s3)">${CRITERIA.map(c => `<button class="opt" data-pref="${c.id}" aria-pressed="${S.prefs.includes(c.id)}"><span class="tick">${ic("check")}</span><b>${c.label}</b><small>${c.hint}</small></button>`).join("")}</div>
-    <p class="group-label">גיבוי</p>
-    <div class="group"><button class="group-row" data-s="export"><span>העתקת גיבוי (בלי תמונות)</span>${ic("copy")}</button><button class="group-row" data-s="import"><span>שחזור מגיבוי</span>${ic("back")}</button></div>
+    ${g ? `<p class="group-label">הקבוצה "${esc(g.name)}"</p><div class="group"><button class="group-row" data-s="invite"><span>הזמנת חברים</span>${ic("userPlus")}</button><button class="group-row btn-danger" data-s="leave"><span>יציאה מהקבוצה</span>${ic("logout")}</button></div>` : ""}
     <p class="group-label">אחר</p>
-    <div class="group"><button class="group-row" data-s="onboarding"><span>הצגת שאלון הפתיחה מחדש</span>${ic("back")}</button></div>`, sh => {
+    <div class="group"><button class="group-row" data-s="onboarding"><span>הצגת שאלון הפתיחה מחדש</span>${ic("back")}</button></div>
+    <p class="lead" style="font-size:13px">${be.kind === "firebase" ? "מחובר — הקבוצות מסונכרנות עם החברים." : "הנתונים שמורים רק במכשיר הזה."}</p>`, sh => {
     sh.addEventListener("click", async e => {
       const th = e.target.closest("[data-theme-set]");
       if (th) { ls.set("theme", th.dataset.themeSet); applyTheme(); sh.querySelectorAll("[data-theme-set]").forEach(x => x.setAttribute("aria-pressed", x === th)); render(); }
-      const pf = e.target.closest("[data-pref]");
-      if (pf) { const k = pf.dataset.pref; S.prefs = S.prefs.includes(k) ? S.prefs.filter(x => x !== k) : [...S.prefs, k]; ls.set("prefs", S.prefs); pf.setAttribute("aria-pressed", S.prefs.includes(k)); render(); }
       const a = e.target.closest("[data-s]")?.dataset.s;
-      if (a === "export") { try { await navigator.clipboard.writeText(JSON.stringify(S.burgers.map(b => ({ id: b.id, name: b.name, place: b.place, date: b.date, price: b.price, scores: b.mine?.scores || b.scores, notes: b.mine?.notes || "" })))); toast("הגיבוי הועתק"); } catch { toast("לא הצלחנו להעתיק. נסו שוב"); } }
-      if (a === "import") openImport();
+      if (a === "name") openName();
+      if (a === "invite") openInvite();
       if (a === "onboarding") { closeSheet(); startOnboarding(); }
+      if (a === "leave" && await confirmDialog({ title: "לצאת מהקבוצה?", text: "הדירוגים שלך יישארו בקבוצה. אפשר לחזור עם הקוד.", ok: "יציאה", danger: true })) {
+        try { await be.leaveGroup(S.gid); delete S.groups[S.gid]; closeSheet(); selectGroup(Object.keys(S.groups)[0] || null); toast("יצאת מהקבוצה"); } catch { toast("לא הצלחנו לצאת. נסו שוב"); }
+      }
     });
-  });
-}
-function openImport() {
-  openSheet(`<div class="sheet-head"><h2>שחזור מגיבוי</h2><button class="icon-btn" data-close aria-label="סגירה">${ic("x")}</button></div>
-    <label class="field"><span>הדביקו כאן את טקסט הגיבוי</span><textarea class="input" id="imp" style="height:160px" dir="ltr"></textarea></label>
-    <button class="btn btn-primary" id="impgo">הוספת הדירוגים</button>`, sh => {
-    sh.querySelector("#impgo").onclick = async () => {
-      try {
-        const arr = JSON.parse(sh.querySelector("#imp").value); if (!Array.isArray(arr)) throw 0;
-        const ids = new Set(S.burgers.map(b => b.id)); const add = arr.filter(b => b && b.name && b.scores && !ids.has(b.id));
-        for (const b of add) await Store.saveBurger({ ...b, photo: null }, b.scores, b.notes || "");
-        closeSheet(); refresh(); toast(`נוספו ${add.length} המבורגרים`);
-      } catch { toast("הטקסט הזה לא נראה כמו גיבוי. העתיקו אותו שוב"); }
-    };
   });
 }
 
 /* ---------- onboarding (goodonboarding) ---------- */
-const GOALS = [["🏆", "למצוא את ההמבורגר הכי טוב שיש"], ["👥", "להכריע סוף סוף מי צודק בחבר׳ה"], ["📍", "לזכור איפה היה טעים ואיפה לא"], ["💸", "לדעת איפה שווה את הכסף"], ["🗺️", "לנסות כל שבוע מקום חדש"]];
+const GOALS = [["🏆", "למצוא את מקום ההמבורגר הכי טוב"], ["👥", "להכריע סוף סוף מי צודק בחבר׳ה"], ["📍", "לזכור איפה היה טעים ואיפה לא"], ["💸", "לדעת איפה שווה את הכסף"], ["🗺️", "לנסות כל פעם מקום חדש"]];
 const PAINS = [
-  ["שוכחים איך קראו למקום ההוא", "כל המבורגר נשמר עם שם, מקום, תאריך ותמונה"],
-  ["כל אחד זוכר את זה אחרת", "ציון מ-1 עד 10 על כל פרט, כתוב ושמור"],
-  ["ויכוחים בלי סוף מי הכי טוב", "טבלה שמסתדרת לבד, מהטוב ביותר למטה"],
-  ["משלמים הרבה על המבורגר בינוני", "ציון ״תמורה למחיר״ ומיון של הכי שווים"],
-  ["לא סומכים על ביקורות ברשת", "הדירוג הוא שלכם בלבד, לפי מה שחשוב לכם"],
+  ["שוכחים איך קראו למקום ההוא", "כל מקום נשמר בטבלה של הקבוצה, עם תמונה ומה הזמנתם"],
+  ["כל אחד בקבוצה זוכר את זה אחרת", "כל חבר מדרג בעצמו, והציון הוא הממוצע של כולם"],
+  ["ויכוחים בלי סוף מי הכי טוב", "פודיום: מקום ראשון, שני ושלישי, שמתעדכן לבד"],
+  ["משלמים הרבה על המבורגר בינוני", "ציון ״תמורה למחיר״ לכל מקום"],
+  ["לא סומכים על ביקורות ברשת", "רק החברים שלכם מדרגים, אף אחד אחר"],
 ];
-function startOnboarding() {
-  const st = { step: 0, goal: ls.get("ob-goal", null), pains: [], prefs: [...S.prefs], burger: null };
+function startOnboarding(joinCode = null) {
+  const st = { step: 0, goal: ls.get("ob-goal", null), pains: [], name: S.name, mode: joinCode ? "join" : "create", gname: "", code: joinCode || "", demo: null, place: null };
   const ob = document.createElement("div"); ob.className = "ob"; ob.setAttribute("role", "dialog"); ob.setAttribute("aria-label", "שאלון פתיחה");
   document.body.appendChild(ob); document.body.style.overflow = "hidden";
-  const STEPS = 7;
+  const STEPS = 8;
   const draw = () => {
     const s = st.step, pct = Math.round(((s + 1) / STEPS) * 100);
     let body = "", foot = "";
@@ -405,82 +407,114 @@ function startOnboarding() {
       body = `<h1>מה מעצבן היום?</h1><p class="lead">אפשר לבחור כמה.</p><div class="opts">${PAINS.map(([p], i) => `<button class="opt" data-pain="${i}" aria-pressed="${st.pains.includes(i)}">${p}<span class="tick">${ic("check")}</span></button>`).join("")}</div>`;
       foot = `<button class="btn btn-primary" data-next>${st.pains.length ? "ככה בדיוק" : "דילוג"}</button>`;
     } else if (s === 2) {
-      const picked = st.pains.length ? st.pains : [0, 2];
+      const picked = st.pains.length ? st.pains : [1, 2];
       body = `<h1>הנה מה שמשתנה</h1><p class="lead">לכל דבר שבחרתם, יש פתרון.</p><div class="sol">${picked.map(i => `<div class="sol-item"><div class="pain">${PAINS[i][0]}</div><div class="fix">${ic("check")}${PAINS[i][1]}</div></div>`).join("")}</div>`;
       foot = `<button class="btn btn-primary" data-next>מעולה, הלאה</button>`;
     } else if (s === 3) {
-      body = `<h1>מה הכי חשוב לכם בהמבורגר?</h1><p class="lead">מה שתבחרו יקבל משקל כפול בציון הכולל. אפשר לשנות אחר כך.</p><div class="grid2">${CRITERIA.map(c => `<button class="opt" data-pref="${c.id}" aria-pressed="${st.prefs.includes(c.id)}"><span class="tick">${ic("check")}</span><b>${c.label}</b><small>${c.hint}</small></button>`).join("")}</div>`;
-      foot = `<button class="btn btn-primary" data-next>בנו לי את הטבלה</button>`;
+      body = `<h1>איך קוראים לך?</h1><p class="lead">ככה החברים יראו מי דירג מה.</p><label class="field"><span>השם שלך</span><input class="input" id="on" maxlength="24" value="${esc(st.name)}" autocomplete="given-name"></label>`;
+      foot = `<button class="btn btn-primary" data-next ${st.name.trim() ? "" : "disabled"}>המשך</button>`;
     } else if (s === 4) {
-      body = `<div class="processing"><div class="stack"><i></i><i></i><i></i><i></i><i></i></div><h1 style="font-size:24px">בונים לכם את טבלת הדירוג…</h1><p class="lead" style="margin:0">${st.prefs.length ? "עם דגש על " + st.prefs.map(id => CRITERIA.find(c => c.id === id).label).join(" ו") : "כל הפרמטרים שווים"}</p></div>`;
-      setTimeout(() => { if (st.step === 4) { st.step = 5; draw(); } }, 1700);
+      body = `<h1>עם מי מדרגים?</h1><p class="lead">צרו קבוצה חדשה, או הצטרפו לקבוצה של חבר.</p>
+        <div class="seg seg-wide" role="tablist"><button data-mode="create" aria-pressed="${st.mode === "create"}">קבוצה חדשה</button><button data-mode="join" aria-pressed="${st.mode === "join"}">יש לי קוד</button></div>
+        ${st.mode === "create" ? `<label class="field" style="margin-top:var(--s3)"><span>שם הקבוצה</span><input class="input" id="og" maxlength="32" placeholder="למשל: החבר׳ה מהצבא" value="${esc(st.gname)}"></label>`
+          : `<label class="field" style="margin-top:var(--s3)"><span>קוד הצטרפות</span><input class="input code-input" id="oc" maxlength="6" placeholder="ABC123" dir="ltr" autocapitalize="characters" value="${esc(st.code)}"></label>`}`;
+      const ok = st.mode === "create" ? st.gname.trim() : st.code.length === 6;
+      foot = `<button class="btn btn-primary" data-group ${ok ? "" : "disabled"}>${st.mode === "create" ? "יצירת הקבוצה" : "הצטרפות"}</button>`;
     } else if (s === 5) {
-      const sc = st.demo || (st.demo = Object.fromEntries(CRITERIA.map(c => [c.id, 7])));
-      body = `<h1>דרגו את ההמבורגר האחרון שאכלתם</h1><p class="lead">לוקח חצי דקה. תמונה ופרטים אפשר להוסיף אחר כך.</p>
-        <label class="field"><span>שם ההמבורגר</span><input class="input" id="dn" placeholder="למשל: הקלאסי" value="${esc(st.dname || "")}"></label>
-        <label class="field"><span>מקום</span><input class="input" id="dp" placeholder="שם המסעדה" value="${esc(st.dplace || "")}"></label>
-        <div class="total-live"><span style="font-weight:600">ציון כולל</span><b id="dtl">${fmt(totalWith(sc, st.prefs))}</b></div>
-        ${CRITERIA.map(c => `<div class="slider"><div class="slider-top"><span>${c.label}${st.prefs.includes(c.id) ? "<em>חשוב לכם</em>" : ""}</span><b data-out="${c.id}">${sc[c.id]}</b></div><input type="range" min="1" max="10" value="${sc[c.id]}" name="${c.id}" aria-label="${c.label}"></div>`).join("")}`;
-      foot = `<button class="btn btn-primary" data-demo ${st.dname ? "" : "disabled"}>הכניסו לטבלה</button><button class="btn btn-ghost" data-skip>אדרג אחר כך</button>`;
+      body = `<div class="processing"><div class="stack"><i></i><i></i><i></i><i></i><i></i></div><h1 style="font-size:24px">מכינים את הפודיום…</h1><p class="lead" style="margin:0">${esc(S.groups[S.gid]?.name || "")}</p></div>`;
+      setTimeout(() => { if (st.step === 5) { st.step = 6; draw(); } }, 1500);
     } else if (s === 6) {
-      const b = st.burger;
-      body = `<div class="result">${b ? `<span class="badge">${ic("award")} מקום ${rankMap()[b.id] || 1} בטבלה</span><div class="result-card"><span class="card-title" style="font-size:22px;white-space:normal">${esc(b.name)}</span>${b.place ? `<span class="card-sub" style="justify-content:center">${ic("pin")}${esc(b.place)}</span>` : ""}<div class="big">${fmt(total(b))}</div><p class="lead" style="margin:0">מתוך 10</p></div><h1 style="font-size:24px">הטבלה שלכם נפתחה</h1><p class="lead">כל המבורגר הבא יתמקם בה לבד. עכשיו אפשר להתחיל להתווכח עם נתונים.</p>` : `${BURGER_ART.replace("<svg", '<svg width="120" height="120"')}<h1 style="font-size:26px;margin-top:var(--s3)">הכול מוכן</h1><p class="lead">בפעם הבאה שאתם אוכלים המבורגר, לחצו על ״דרגו המבורגר״.</p>`}</div>`;
-      foot = `<button class="btn btn-primary" data-done>לטבלה שלי</button>${b ? `<button class="btn" data-share>${ic("share")}שלחו לחבר׳ה</button>` : ""}`;
+      const sc = st.demo || (st.demo = Object.fromEntries(CRITERIA.map(c => [c.id, 7])));
+      body = `<h1>דרגו את מקום ההמבורגר האחרון שהייתם בו</h1><p class="lead">לוקח חצי דקה. תמונה ופרטים אפשר להוסיף אחר כך.</p>
+        <label class="field"><span>שם המקום</span><input class="input" id="dp" placeholder="למשל: מוזס" value="${esc(st.dplace || "")}"></label>
+        <div class="total-live"><span style="font-weight:600">הציון שלי</span><b id="dtl">${fmt(scoreOf(sc))}</b></div>
+        ${CRITERIA.map(c => `<div class="slider"><div class="slider-top"><span>${c.label}</span><b data-out="${c.id}">${sc[c.id]}</b></div><input type="range" min="1" max="10" value="${sc[c.id]}" name="${c.id}" aria-label="${c.label}"></div>`).join("")}`;
+      foot = `<button class="btn btn-primary" data-demo ${st.dplace ? "" : "disabled"}>הכניסו לטבלה</button><button class="btn btn-ghost" data-skip>אדרג אחר כך</button>`;
+    } else if (s === 7) {
+      const g = S.groups[S.gid], p = st.place;
+      body = `<div class="result">${p ? `<span class="badge">${ic("award")} מקום ${rankMap()[p.id] || 1} בפודיום</span><div class="result-card"><span class="card-title" style="font-size:22px;white-space:normal">${esc(p.name)}</span><div class="big">${fmt(scoreOf(st.demo))}</div><p class="lead" style="margin:0">מתוך 10</p></div>` : `${BURGER_ART.replace("<svg", '<svg width="120" height="120"')}`}
+        <h1 style="font-size:24px">עכשיו תורם של החברים</h1><p class="lead">שלחו להם את הקוד <b dir="ltr">${esc(g?.code || "")}</b>. כל אחד מדרג, והממוצע קובע מי עולה לפודיום.</p></div>`;
+      foot = `<button class="btn btn-primary" data-invite>${ic("share")}הזמנת חברים</button><button class="btn" data-done>לטבלה</button>`;
     }
-    ob.innerHTML = `<div class="ob-top">${s > 0 && s !== 4 && s !== 6 ? `<button class="icon-btn" data-back aria-label="חזרה">${ic("back")}</button>` : `<span style="width:48px"></span>`}<div class="progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div></div><div class="ob-body enter">${body}</div>${foot ? `<div class="ob-foot">${foot}</div>` : ""}`;
-    if (s === 5) {
-      const upd = () => { const btn = ob.querySelector("[data-demo]"); btn.disabled = !ob.querySelector("#dn").value.trim(); };
-      ob.querySelector("#dn").oninput = e => { st.dname = e.target.value; upd(); };
-      ob.querySelector("#dp").oninput = e => { st.dplace = e.target.value; };
-      ob.querySelectorAll("input[type=range]").forEach(r => r.oninput = () => { st.demo[r.name] = +r.value; ob.querySelector(`[data-out=${r.name}]`).textContent = r.value; ob.querySelector("#dtl").textContent = fmt(totalWith(st.demo, st.prefs)); });
+    ob.innerHTML = `<div class="ob-top">${s > 0 && s < 5 ? `<button class="icon-btn" data-back aria-label="חזרה">${ic("back")}</button>` : `<span style="width:48px"></span>`}<div class="progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div></div><div class="ob-body enter">${body}</div>${foot ? `<div class="ob-foot">${foot}</div>` : ""}`;
+    const on = ob.querySelector("#on"); if (on) on.oninput = e => { st.name = e.target.value; ob.querySelector("[data-next]").disabled = !st.name.trim(); };
+    const og = ob.querySelector("#og"); if (og) og.oninput = e => { st.gname = e.target.value; ob.querySelector("[data-group]").disabled = !st.gname.trim(); };
+    const oc = ob.querySelector("#oc"); if (oc) oc.oninput = e => { e.target.value = st.code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); ob.querySelector("[data-group]").disabled = st.code.length !== 6; };
+    if (s === 6) {
+      ob.querySelector("#dp").oninput = e => { st.dplace = e.target.value; ob.querySelector("[data-demo]").disabled = !st.dplace.trim(); };
+      ob.querySelectorAll("input[type=range]").forEach(r => r.oninput = () => { st.demo[r.name] = +r.value; ob.querySelector(`[data-out=${r.name}]`).textContent = r.value; ob.querySelector("#dtl").textContent = fmt(scoreOf(st.demo)); });
     }
   };
-  const finish = () => { ls.set("onboarded", true); ob.remove(); document.body.style.overflow = ""; refresh(); };
+  const finish = () => { ls.set("onboarded", true); ob.remove(); document.body.style.overflow = ""; render(); };
   ob.addEventListener("click", async e => {
-    const t = e.target.closest("button"); if (!t) return;
+    const t = e.target.closest("button"); if (!t || t.disabled) return;
     if (t.dataset.goal != null) { st.goal = +t.dataset.goal; ls.set("ob-goal", st.goal); draw(); return; }
     if (t.dataset.pain != null) { const i = +t.dataset.pain; st.pains = st.pains.includes(i) ? st.pains.filter(x => x !== i) : [...st.pains, i]; draw(); return; }
-    if (t.dataset.pref != null) { const k = t.dataset.pref; st.prefs = st.prefs.includes(k) ? st.prefs.filter(x => x !== k) : [...st.prefs, k]; draw(); return; }
-    if ("back" in t.dataset) { st.step = st.step === 5 ? 3 : st.step - 1; draw(); return; }
-    if ("next" in t.dataset) { if (st.step === 3) { S.prefs = st.prefs; ls.set("prefs", S.prefs); } st.step++; draw(); return; }
-    if ("demo" in t.dataset) {
-      try { const rec = await Store.saveBurger({ id: uid(), createdAt: Date.now(), name: st.dname.trim(), place: (st.dplace || "").trim(), date: today(), price: "", photo: null }, { ...st.demo }, "");
-        S.burgers = Store.list(); st.burger = S.burgers.find(x => x.id === rec.id); justAdded = rec.id; st.step = 6; draw(); } catch { toast("לא הצלחנו לשמור. בדקו את החיבור ונסו שוב"); } return;
+    if (t.dataset.mode) { st.mode = t.dataset.mode; draw(); return; }
+    if ("back" in t.dataset) { st.step--; draw(); return; }
+    if ("next" in t.dataset) {
+      if (st.step === 3) { S.name = st.name.trim(); ls.set("name", S.name); if (Object.keys(S.groups).length) { st.step = 7; draw(); return; } }
+      st.step++; draw(); return;
     }
-    if ("skip" in t.dataset) { st.burger = null; st.step = 6; draw(); return; }
-    if ("share" in t.dataset) { const b = st.burger; share(`דירגתי את ${b.name}${b.place ? " ב" + b.place : ""}: ${fmt(total(b))}/10 🍔\nבואו נבנה טבלה של ההמבורגרים הכי טובים שאכלנו`); return; }
+    if ("group" in t.dataset) {
+      t.disabled = true;
+      try {
+        if (st.mode === "create") await createGroup(st.gname.trim()); else await joinGroup(st.code);
+        // joined a group that already has places → go straight to the table
+        if (st.mode === "join" && S.data?.places?.length) { st.step = 7; } else st.step = 5;
+        draw();
+      } catch (err) { t.disabled = false; toast(st.mode === "join" ? joinErrorText(err) : "לא הצלחנו ליצור את הקבוצה. בדקו את החיבור ונסו שוב"); }
+      return;
+    }
+    if ("demo" in t.dataset) {
+      t.disabled = true;
+      try {
+        const name = st.dplace.trim(), ex = places().find(x => x.name.trim().toLowerCase() === name.toLowerCase());
+        const place = ex ? { id: ex.id, name: ex.name, city: ex.city || "", photo: ex.photo || null, addedBy: ex.addedBy, createdAt: ex.createdAt } : { id: rid(), name, city: "", photo: null, addedBy: be.uid, createdAt: Date.now() };
+        await be.savePlace(S.gid, place);
+        await be.saveRating(S.gid, { id: `${place.id}__${be.uid}`, pid: place.id, uid: be.uid, scores: { ...st.demo }, dish: "", notes: "", at: Date.now() });
+        st.place = place; justAdded = place.id; st.step = 7; setTimeout(draw, 120);
+      } catch { t.disabled = false; toast("לא הצלחנו לשמור. בדקו את החיבור ונסו שוב"); }
+      return;
+    }
+    if ("skip" in t.dataset) { st.place = null; st.step = 7; draw(); return; }
+    if ("invite" in t.dataset) { const g = S.groups[S.gid]; if (g) share(inviteText(g), joinUrl(g.code)); return; }
     if ("done" in t.dataset) finish();
   });
   draw();
 }
-function totalWith(scores, prefs) { let s = 0, w = 0; for (const c of CRITERIA) { const k = prefs.includes(c.id) ? 2 : 1; s += scores[c.id] * k; w += k; } return Math.round((s / w) * 10) / 10; }
 
 /* ---------- boot ---------- */
 async function boot() {
   applyTheme();
   render();
-  Store.on(() => { if (!S.loading) refresh(); });
-  Store.init().then(async () => { await Store.loadOwner(); S.loading = false; refresh(); });
-  // dev reset: add ?reset to the URL (clears this device only)
-  if (location.search.includes("reset")) { try { localStorage.clear(); sessionStorage.clear(); } catch {} await Store.resetLocal(); S.prefs = ["taste", "patty"]; }
-  const onboarded = ls.get("onboarded", false);
+  be = await createBackend();
+  await loadGroups();
+  selectGroup(S.gid);
+  const params = new URLSearchParams(location.search);
+  const join = (params.get("join") || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) || null;
+  if (join) history.replaceState(null, "", location.pathname);
+  const afterIntro = () => {
+    if (!ls.get("onboarded", false) || !S.name) return startOnboarding(join);
+    if (join) {
+      const already = Object.values(S.groups).find(g => g.code === join);
+      if (already) { selectGroup(already.id); toast(`את/ה כבר ב"${already.name}"`); }
+      else openJoin(join);
+    }
+  };
   let seen = false; try { seen = sessionStorage.getItem("bunrank-intro-seen") === "1"; } catch {}
-  const after = () => { if (!ls.get("onboarded", false)) startOnboarding(); };
-  if (!seen) {
-    const host = document.createElement("div"); document.body.appendChild(host);
-    const unmount = mountBurgerIntro(host, {
-      name: "BunRank",
-      headline: 'מי ההמבורגר<br/>הכי <span class="bi-accent">טוב?</span>',
-      welcome: "ברוכים הבאים",
-      subtitle: "מדרגים כל המבורגר שאכלתם, ורואים סוף סוף מי באמת מספר אחת.",
-      hint: "החליקו למעלה",
-      buttons: onboarded ? [{ id: "go", label: "לטבלה שלי", dark: true }] : [{ id: "go", label: "בואו נתחיל", dark: true }],
-      onEnter: () => { try { sessionStorage.setItem("bunrank-intro-seen", "1"); } catch {} unmount(); host.remove(); after(); },
-    });
-  } else after();
+  if (seen) return afterIntro();
+  const host = document.createElement("div"); document.body.appendChild(host);
+  const unmount = mountBurgerIntro(host, {
+    name: "BunRank",
+    headline: 'מי ההמבורגר<br/>הכי <span class="bi-accent">טוב?</span>',
+    welcome: "ברוכים הבאים",
+    subtitle: join ? "הוזמנתם לקבוצה. בואו נדרג ביחד." : "מדרגים מקומות המבורגר עם החברים, והממוצע קובע מי על הפודיום.",
+    hint: "החליקו למעלה",
+    buttons: [{ id: "go", label: ls.get("onboarded", false) && S.name ? "לטבלה שלנו" : "בואו נתחיל", dark: true }],
+    onEnter: () => { try { sessionStorage.setItem("bunrank-intro-seen", "1"); } catch {} unmount(); host.remove(); afterIntro(); },
+  });
 }
 boot();
 
-if ("serviceWorker" in navigator && location.protocol === "https:") {
-  navigator.serviceWorker.register("./sw.js").catch(() => {});
-}
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("./sw.js").catch(() => {});

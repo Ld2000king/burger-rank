@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isMember(gid) {
+      return signedIn() && exists(/databases/$(database)/documents/groups/$(gid)/members/$(request.auth.uid));
+    }
+    function small() { return request.resource.data.size() < 20; }
+
+    // Invite codes: readable by signed-in users who know the code, never changed after creation.
+    match /codes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['gid']);
+      allow update, delete: if false;
+    }
+
+    match /groups/{gid} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid && small();
+      allow update, delete: if signedIn() && resource.data.createdBy == request.auth.uid;
+
+      // You can only add or remove yourself.
+      match /members/{uid} {
+        allow read: if isMember(gid);
+        allow write: if signedIn() && request.auth.uid == uid;
+      }
+
+      match /places/{pid} {
+        allow read: if isMember(gid);
+        allow create: if isMember(gid) && request.resource.data.addedBy == request.auth.uid && small();
+        allow update: if isMember(gid) && small();
+        allow delete: if isMember(gid) && resource.data.addedBy == request.auth.uid;
+      }
+
+      // Everyone in the group sees all ratings; you can only write your own.
+      match /ratings/{rid} {
+        allow read: if isMember(gid);
+        allow create, update: if isMember(gid) && request.resource.data.uid == request.auth.uid && small();
+        allow delete: if isMember(gid) && resource.data.uid == request.auth.uid;
+      }
+    }
+  }
+}
